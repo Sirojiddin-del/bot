@@ -1,0 +1,2362 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Кадрлар бўлими тизими</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed; left: 0; top: 0; width: 280px; height: 100vh;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px 0; overflow-y: auto; z-index: 1000;
+        }
+        .sidebar h2 { color: #fff; text-align: center; padding: 20px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        .sidebar ul { list-style: none; }
+        .sidebar li { border-bottom: 1px solid rgba(255,255,255,0.05); }
+        .sidebar a {
+            display: block; padding: 15px 25px; color: rgba(255,255,255,0.8);
+            text-decoration: none; transition: all 0.3s;
+        }
+        .sidebar a:hover, .sidebar a.active { background: rgba(255,255,255,0.1); color: #fff; border-left: 4px solid #4fc3f7; }
+        .sidebar a i { margin-right: 10px; width: 20px; }
+
+        /* Main Content */
+        .main-content { margin-left: 280px; padding: 30px; min-height: 100vh; }
+        .header { background: #fff; padding: 20px 30px; border-radius: 10px; margin-bottom: 25px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); display: flex; justify-content: space-between; align-items: center; }
+        .header h1 { color: #1e3c72; font-size: 24px; }
+
+        /* Cards */
+        .dashboard-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px; }
+        .card { background: #fff; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+        .card.stat { display: flex; align-items: center; }
+        .card.stat .icon { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 24px; margin-right: 15px; }
+        .card.stat .icon.blue { background: #e3f2fd; color: #1976d2; }
+        .card.stat .icon.green { background: #e8f5e9; color: #388e3c; }
+        .card.stat .icon.orange { background: #fff3e0; color: #f57c00; }
+        .card.stat .icon.red { background: #ffebee; color: #d32f2f; }
+        .card.stat .info h3 { font-size: 28px; color: #333; }
+        .card.stat .info p { color: #666; font-size: 14px; }
+
+        /* Tables */
+        .table-container { background: #fff; border-radius: 10px; padding: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); margin-bottom: 25px; }
+        .table-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; flex-wrap: wrap; gap: 15px; }
+        .table-header h3 { color: #333; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px 15px; text-align: left; border-bottom: 1px solid #eee; }
+        th { background: #f8f9fa; color: #333; font-weight: 600; }
+        tr:hover { background: #f8f9fa; }
+
+        /* Buttons */
+        .btn { padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; font-size: 14px; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; }
+        .btn-primary { background: #1976d2; color: #fff; }
+        .btn-primary:hover { background: #1565c0; }
+        .btn-success { background: #388e3c; color: #fff; }
+        .btn-success:hover { background: #2e7d32; }
+        .btn-warning { background: #f57c00; color: #fff; }
+        .btn-warning:hover { background: #ef6c00; }
+        .btn-danger { background: #d32f2f; color: #fff; }
+        .btn-danger:hover { background: #c62828; }
+        .btn-sm { padding: 6px 12px; font-size: 12px; }
+
+        /* Forms */
+        .form-group { margin-bottom: 20px; }
+        .form-group label { display: block; margin-bottom: 8px; color: #333; font-weight: 500; }
+        .form-group input, .form-group select, .form-group textarea {
+            width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 5px; font-size: 14px; transition: border 0.3s;
+        }
+        .form-group input:focus, .form-group select:focus, .form-group textarea:focus { border-color: #1976d2; outline: none; }
+        .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; }
+
+        /* Modal */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
+        .modal.active { display: flex; }
+        .modal-content { background: #fff; border-radius: 10px; width: 90%; max-width: 800px; max-height: 90vh; overflow-y: auto; }
+        .modal-header { padding: 20px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; align-items: center; }
+        .modal-header h3 { color: #333; }
+        .modal-close { font-size: 28px; cursor: pointer; color: #666; }
+        .modal-close:hover { color: #333; }
+        .modal-body { padding: 20px; }
+        .modal-footer { padding: 20px; border-top: 1px solid #eee; display: flex; justify-content: flex-end; gap: 10px; }
+
+        /* Section hiding */
+        .section { display: none; }
+        .section.active { display: block; }
+
+        /* Search & Filter */
+        .search-box { display: flex; gap: 10px; }
+        .search-box input { padding: 10px 15px; border: 1px solid #ddd; border-radius: 5px; width: 300px; }
+
+        /* Badges */
+        .badge { padding: 5px 10px; border-radius: 15px; font-size: 12px; font-weight: 500; }
+        .badge-success { background: #e8f5e9; color: #388e3c; }
+        .badge-warning { background: #fff3e0; color: #f57c00; }
+        .badge-danger { background: #ffebee; color: #d32f2f; }
+        .badge-info { background: #e3f2fd; color: #1976d2; }
+
+        /* Reminders */
+        .reminder-list { max-height: 400px; overflow-y: auto; }
+        .reminder-item { padding: 15px; border-left: 4px solid #f57c00; background: #fff9f0; margin-bottom: 10px; border-radius: 0 5px 5px 0; }
+        .reminder-item.urgent { border-left-color: #d32f2f; background: #fff5f5; }
+        .reminder-item h4 { color: #333; margin-bottom: 5px; }
+        .reminder-item p { color: #666; font-size: 14px; }
+
+        /* Tabs */
+        .tabs { display: flex; border-bottom: 2px solid #eee; margin-bottom: 20px; }
+        .tab { padding: 12px 25px; cursor: pointer; color: #666; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.3s; }
+        .tab:hover { color: #1976d2; }
+        .tab.active { color: #1976d2; border-bottom-color: #1976d2; }
+
+        /* Print */
+        @media print {
+            .sidebar, .btn, .modal { display: none !important; }
+            .main-content { margin-left: 0; }
+        }
+
+        /* Security Modal */
+        .security-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; align-items: center; justify-content: center; }
+        .security-overlay.active { display: flex; }
+        .security-box { background: #fff; padding: 40px; border-radius: 10px; text-align: center; }
+        .security-box h3 { margin-bottom: 20px; color: #333; }
+        .security-box input { padding: 15px; font-size: 24px; text-align: center; letter-spacing: 10px; width: 200px; border: 2px solid #ddd; border-radius: 5px; }
+        .security-box .error { color: #d32f2f; margin-top: 10px; display: none; }
+
+        /* Attendance Calendar */
+        .calendar { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; }
+        .calendar-header { background: #1976d2; color: #fff; padding: 10px; text-align: center; font-weight: 600; }
+        .calendar-day { background: #fff; border: 1px solid #eee; padding: 10px; min-height: 80px; }
+        .calendar-day.weekend { background: #f5f5f5; }
+        .calendar-day .date { font-weight: 600; color: #333; }
+        .calendar-day .status { font-size: 11px; margin-top: 5px; }
+
+        /* Export buttons */
+        .export-buttons { display: flex; gap: 10px; }
+    </style>
+</head>
+<body>
+    <!-- Security Overlay -->
+    <div class="security-overlay" id="securityOverlay">
+        <div class="security-box">
+            <h3>Хавфсизлик коди</h3>
+            <p style="margin-bottom:20px;color:#666;">Ўзгартириш учун кодни киритинг</p>
+            <input type="password" id="securityCode" maxlength="4" placeholder="****">
+            <p class="error" id="securityError">Нотўғри код!</p>
+            <div style="margin-top:20px;">
+                <button class="btn btn-primary" onclick="checkSecurityCode()">Тасдиқлаш</button>
+                <button class="btn btn-danger" onclick="cancelSecurity()">Бекор қилиш</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sidebar -->
+    <div class="sidebar">
+        <h2>HR Тизими</h2>
+        <ul>
+            <li><a href="#" class="active" onclick="showSection('dashboard')">📊 Бош саҳифа</a></li>
+            <li><a href="#" onclick="showSection('employees')">👥 Ходимлар</a></li>
+            <li><a href="#" onclick="showSection('hiring')">📝 Ишга қабул</a></li>
+            <li><a href="#" onclick="showSection('movements')">🔄 Кадрлар ҳаракати</a></li>
+            <li><a href="#" onclick="showSection('vacations')">🏖️ Таътиллар</a></li>
+            <li><a href="#" onclick="showSection('timesheet')">⏰ Табель</a></li>
+            <li><a href="#" onclick="showSection('sickleave')">🏥 Касаллик варақаси</a></li>
+            <li><a href="#" onclick="showSection('orders')">📋 Буйруқлар</a></li>
+            <li><a href="#" onclick="showSection('staffing')">📑 Штат жадвали</a></li>
+            <li><a href="#" onclick="showSection('attendance')">✅ Давомат</a></li>
+            <li><a href="#" onclick="showSection('documents')">📁 Ҳужжатлар</a></li>
+            <li><a href="#" onclick="showSection('reminders')">🔔 Эслатмалар</a></li>
+            <li><a href="#" onclick="showSection('reports')">📈 Ҳисоботлар</a></li>
+            <li><a href="#" onclick="showSection('settings')">⚙️ Созламалар</a></li>
+        </ul>
+    </div>
+
+    <!-- Main Content -->
+    <div class="main-content">
+        <!-- Dashboard Section -->
+        <div id="dashboard" class="section active">
+            <div class="header">
+                <h1>Бош саҳифа</h1>
+                <div class="export-buttons">
+                    <button class="btn btn-success" onclick="exportToExcel('dashboard')">📊 Excel</button>
+                    <button class="btn btn-primary" onclick="exportToWord('dashboard')">📄 Word</button>
+                </div>
+            </div>
+
+            <div class="dashboard-cards">
+                <div class="card stat">
+                    <div class="icon blue">👥</div>
+                    <div class="info">
+                        <h3 id="totalEmployees">0</h3>
+                        <p>Жами ходимлар</p>
+                    </div>
+                </div>
+                <div class="card stat">
+                    <div class="icon green">✅</div>
+                    <div class="info">
+                        <h3 id="activeEmployees">0</h3>
+                        <p>Фаол ходимлар</p>
+                    </div>
+                </div>
+                <div class="card stat">
+                    <div class="icon orange">🏖️</div>
+                    <div class="info">
+                        <h3 id="onVacation">0</h3>
+                        <p>Таътилда</p>
+                    </div>
+                </div>
+                <div class="card stat">
+                    <div class="icon red">🏥</div>
+                    <div class="info">
+                        <h3 id="onSickLeave">0</h3>
+                        <p>Касаллик варақасида</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <h3 style="margin-bottom:20px;">Бугунги эслатмалар</h3>
+                <div class="reminder-list" id="todayReminders">
+                    <!-- Reminders will be loaded here -->
+                </div>
+            </div>
+        </div>
+
+        <!-- Employees Section -->
+        <div id="employees" class="section">
+            <div class="header">
+                <h1>Ходимлар рўйхати</h1>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-success" onclick="exportToExcel('employees')">📊 Excel</button>
+                    <button class="btn btn-primary" onclick="exportToWord('employees')">📄 Word</button>
+                    <button class="btn btn-primary" onclick="openModal('employeeModal')">➕ Янги ходим</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <div class="search-box">
+                        <input type="text" id="employeeSearch" placeholder="Қидириш..." onkeyup="searchEmployees()">
+                        <select id="departmentFilter" onchange="filterEmployees()">
+                            <option value="">Барча бўлимлар</option>
+                        </select>
+                    </div>
+                </div>
+                <table id="employeesTable">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Ф.И.О.</th>
+                            <th>Лавозим</th>
+                            <th>Бўлим</th>
+                            <th>Телефон</th>
+                            <th>Ишга қабул</th>
+                            <th>Ҳолат</th>
+                            <th>Амаллар</th>
+                        </tr>
+                    </thead>
+                    <tbody id="employeesTableBody">
+                        <!-- Data will be loaded here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Hiring Section -->
+        <div id="hiring" class="section">
+            <div class="header">
+                <h1>Ишга қабул қилиш</h1>
+                <button class="btn btn-primary" onclick="openModal('hiringModal')">➕ Янги қабул</button>
+            </div>
+
+            <div class="table-container">
+                <table id="hiringTable">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Ходим</th>
+                            <th>Лавозим</th>
+                            <th>Иш тури</th>
+                            <th>Ставка</th>
+                            <th>Синов муддати</th>
+                            <th>Қабул санаси</th>
+                            <th>Буйруқ №</th>
+                            <th>Амаллар</th>
+                        </tr>
+                    </thead>
+                    <tbody id="hiringTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Movements Section -->
+        <div id="movements" class="section">
+            <div class="header">
+                <h1>Кадрлар ҳаракати</h1>
+                <button class="btn btn-primary" onclick="openModal('movementModal')">➕ Янги ҳаракат</button>
+            </div>
+
+            <div class="table-container">
+                <table id="movementsTable">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Ходим</th>
+                            <th>Ҳаракат тури</th>
+                            <th>Эски</th>
+                            <th>Янги</th>
+                            <th>Сана</th>
+                            <th>Буйруқ №</th>
+                            <th>Амаллар</th>
+                        </tr>
+                    </thead>
+                    <tbody id="movementsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Vacations Section -->
+        <div id="vacations" class="section">
+            <div class="header">
+                <h1>Таътиллар ҳисоби</h1>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-success" onclick="exportToExcel('vacations')">📊 Excel</button>
+                    <button class="btn btn-primary" onclick="openModal('vacationModal')">➕ Таътил бериш</button>
+                </div>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="showVacationTab('list')">Таътиллар рўйхати</div>
+                <div class="tab" onclick="showVacationTab('schedule')">Таътил жадвали</div>
+                <div class="tab" onclick="showVacationTab('balance')">Таътил қолдиғи</div>
+            </div>
+
+            <div id="vacationList" class="table-container">
+                <table id="vacationsTable">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Ходим</th>
+                            <th>Таътил тури</th>
+                            <th>Бошланиш</th>
+                            <th>Тугаш</th>
+                            <th>Кунлар</th>
+                            <th>Буйруқ №</th>
+                            <th>Ҳолат</th>
+                            <th>Амаллар</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vacationsTableBody"></tbody>
+                </table>
+            </div>
+
+            <div id="vacationSchedule" class="table-container" style="display:none;">
+                <h3>Йиллик таътил жадвали</h3>
+                <div id="vacationScheduleContent"></div>
+            </div>
+
+            <div id="vacationBalance" class="table-container" style="display:none;">
+                <table id="vacationBalanceTable">
+                    <thead>
+                        <tr>
+                            <th>Ходим</th>
+                            <th>Иш йили</th>
+                            <th>Жами таътил</th>
+                            <th>Фойдаланилган</th>
+                            <th>Қолдиқ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="vacationBalanceBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Timesheet Section -->
+        <div id="timesheet" class="section">
+            <div class="header">
+                <h1>Иш вақти ҳисоби (Табель)</h1>
+                <div style="display:flex;gap:10px;">
+                    <select id="timesheetMonth" onchange="loadTimesheet()">
+                        <option value="1">Январь</option>
+                        <option value="2">Февраль</option>
+                        <option value="3">Март</option>
+                        <option value="4">Апрель</option>
+                        <option value="5">Май</option>
+                        <option value="6">Июнь</option>
+                        <option value="7">Июль</option>
+                        <option value="8">Август</option>
+                        <option value="9">Сентябрь</option>
+                        <option value="10">Октябрь</option>
+                        <option value="11">Ноябрь</option>
+                        <option value="12">Декабрь</option>
+                    </select>
+                    <select id="timesheetYear" onchange="loadTimesheet()">
+                        <option value="2024">2024</option>
+                        <option value="2025">2025</option>
+                        <option value="2026" selected>2026</option>
+                    </select>
+                    <button class="btn btn-success" onclick="exportToExcel('timesheet')">📊 Excel</button>
+                </div>
+            </div>
+
+            <div class="table-container" style="overflow-x:auto;">
+                <table id="timesheetTable">
+                    <thead id="timesheetHeader"></thead>
+                    <tbody id="timesheetBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Sick Leave Section -->
+        <div id="sickleave" class="section">
+            <div class="header">
+                <h1>Касаллик варақаси</h1>
+                <button class="btn btn-primary" onclick="openModal('sickLeaveModal')">➕ Янги касаллик варақаси</button>
+            </div>
+
+            <div class="table-container">
+                <table id="sickLeaveTable">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Ходим</th>
+                            <th>Бошланиш</th>
+                            <th>Тугаш</th>
+                            <th>Кунлар</th>
+                            <th>Тури</th>
+                            <th>Ҳолат</th>
+                            <th>Амаллар</th>
+                        </tr>
+                    </thead>
+                    <tbody id="sickLeaveTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Orders Section -->
+        <div id="orders" class="section">
+            <div class="header">
+                <h1>Буйруқлар</h1>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-success" onclick="exportToExcel('orders')">📊 Excel</button>
+                    <button class="btn btn-primary" onclick="openModal('orderModal')">➕ Янги буйруқ</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <div class="table-header">
+                    <div class="search-box">
+                        <select id="orderEmployeeFilter" onchange="filterOrders()">
+                            <option value="">Барча ходимлар</option>
+                        </select>
+                        <select id="orderTypeFilter" onchange="filterOrders()">
+                            <option value="">Барча турлар</option>
+                            <option value="hiring">Ишга қабул</option>
+                            <option value="dismissal">Ишдан бўшатиш</option>
+                            <option value="vacation">Таътил</option>
+                            <option value="transfer">Ўтказиш</option>
+                            <option value="salary">Маош ўзгариши</option>
+                            <option value="other">Бошқа</option>
+                        </select>
+                    </div>
+                </div>
+                <table id="ordersTable">
+                    <thead>
+                        <tr>
+                            <th>Буйруқ №</th>
+                            <th>Сана</th>
+                            <th>Тури</th>
+                            <th>Ходим</th>
+                            <th>Мазмуни</th>
+                            <th>Амаллар</th>
+                        </tr>
+                    </thead>
+                    <tbody id="ordersTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Staffing Section -->
+        <div id="staffing" class="section">
+            <div class="header">
+                <h1>Штат жадвали</h1>
+                <div style="display:flex;gap:10px;">
+                    <button class="btn btn-success" onclick="exportToExcel('staffing')">📊 Excel</button>
+                    <button class="btn btn-primary" onclick="openModal('positionModal')">➕ Янги лавозим</button>
+                </div>
+            </div>
+
+            <div class="dashboard-cards">
+                <div class="card stat">
+                    <div class="icon blue">📊</div>
+                    <div class="info">
+                        <h3 id="totalPositions">0</h3>
+                        <p>Жами штат бирликлари</p>
+                    </div>
+                </div>
+                <div class="card stat">
+                    <div class="icon green">✅</div>
+                    <div class="info">
+                        <h3 id="filledPositions">0</h3>
+                        <p>Банд лавозимлар</p>
+                    </div>
+                </div>
+                <div class="card stat">
+                    <div class="icon orange">📭</div>
+                    <div class="info">
+                        <h3 id="vacantPositions">0</h3>
+                        <p>Бўш лавозимлар</p>
+                    </div>
+                </div>
+                <div class="card stat">
+                    <div class="icon blue">💰</div>
+                    <div class="info">
+                        <h3 id="totalFOT">0</h3>
+                        <p>Ойлик ФОТ (сўм)</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="staffingTable">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Бўлим</th>
+                            <th>Лавозим</th>
+                            <th>Штат бирлиги</th>
+                            <th>Банд</th>
+                            <th>Бўш</th>
+                            <th>Оклад</th>
+                            <th>Амаллар</th>
+                        </tr>
+                    </thead>
+                    <tbody id="staffingTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Attendance Section -->
+        <div id="attendance" class="section">
+            <div class="header">
+                <h1>Давомат</h1>
+                <div style="display:flex;gap:10px;">
+                    <input type="date" id="attendanceDate" onchange="loadAttendance()">
+                    <button class="btn btn-success" onclick="exportToExcel('attendance')">📊 Excel</button>
+                    <button class="btn btn-primary" onclick="markAllPresent()">✅ Барчасини белгилаш</button>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <table id="attendanceTable">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Ходим</th>
+                            <th>Бўлим</th>
+                            <th>Келди</th>
+                            <th>Кетди</th>
+                            <th>Ҳолат</th>
+                            <th>Изоҳ</th>
+                            <th>Амаллар</th>
+                        </tr>
+                    </thead>
+                    <tbody id="attendanceTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Documents Section -->
+        <div id="documents" class="section">
+            <div class="header">
+                <h1>Ҳужжатлар</h1>
+                <button class="btn btn-primary" onclick="openModal('documentModal')">➕ Янги ҳужжат</button>
+            </div>
+
+            <div class="tabs">
+                <div class="tab active" onclick="showDocTab('contracts')">Шартномалар</div>
+                <div class="tab" onclick="showDocTab('templates')">Шаблонлар</div>
+                <div class="tab" onclick="showDocTab('agreements')">Қўшимча келишувлар</div>
+            </div>
+
+            <div id="contractsList" class="table-container">
+                <table id="contractsTable">
+                    <thead>
+                        <tr>
+                            <th>№</th>
+                            <th>Ходим</th>
+                            <th>Шартнома тури</th>
+                            <th>Рақам</th>
+                            <th>Сана</th>
+                            <th>Муддат</th>
+                            <th>Амаллар</th>
+                        </tr>
+                    </thead>
+                    <tbody id="contractsTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Reminders Section -->
+        <div id="reminders" class="section">
+            <div class="header">
+                <h1>Эслатмалар</h1>
+                <button class="btn btn-primary" onclick="openModal('reminderModal')">➕ Янги эслатма</button>
+            </div>
+
+            <div class="dashboard-cards">
+                <div class="card">
+                    <h3 style="margin-bottom:15px;color:#d32f2f;">🔴 Шошилинч</h3>
+                    <div id="urgentReminders"></div>
+                </div>
+                <div class="card">
+                    <h3 style="margin-bottom:15px;color:#f57c00;">🟠 Яқин кунларда</h3>
+                    <div id="upcomingReminders"></div>
+                </div>
+                <div class="card">
+                    <h3 style="margin-bottom:15px;color:#388e3c;">🟢 Туғилган кунлар</h3>
+                    <div id="birthdayReminders"></div>
+                </div>
+            </div>
+
+            <div class="table-container">
+                <h3 style="margin-bottom:15px;">Барча эслатмалар</h3>
+                <table id="remindersTable">
+                    <thead>
+                        <tr>
+                            <th>Ходим</th>
+                            <th>Эслатма тури</th>
+                            <th>Тавсиф</th>
+                            <th>Муддат</th>
+                            <th>Ҳолат</th>
+                            <th>Амаллар</th>
+                        </tr>
+                    </thead>
+                    <tbody id="remindersTableBody"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Reports Section -->
+        <div id="reports" class="section">
+            <div class="header">
+                <h1>Ҳисобот ва аналитика</h1>
+            </div>
+
+            <div class="dashboard-cards">
+                <div class="card" style="cursor:pointer;" onclick="generateReport('employees')">
+                    <h3>👥 Ходимлар ҳисоботи</h3>
+                    <p style="color:#666;margin-top:10px;">Ходимлар сони, бўлимлар кесимида</p>
+                </div>
+                <div class="card" style="cursor:pointer;" onclick="generateReport('turnover')">
+                    <h3>🔄 Айланиш ҳисоботи</h3>
+                    <p style="color:#666;margin-top:10px;">Қабул/бўшатиш статистикаси</p>
+                </div>
+                <div class="card" style="cursor:pointer;" onclick="generateReport('salary')">
+                    <h3>💰 Маош ҳисоботи</h3>
+                    <p style="color:#666;margin-top:10px;">Ўртача маош, ФОТ</p>
+                </div>
+                <div class="card" style="cursor:pointer;" onclick="generateReport('vacation')">
+                    <h3>🏖️ Таътил ҳисоботи</h3>
+                    <p style="color:#666;margin-top:10px;">Таътил статистикаси</p>
+                </div>
+                <div class="card" style="cursor:pointer;" onclick="generateReport('attendance')">
+                    <h3>✅ Давомат ҳисоботи</h3>
+                    <p style="color:#666;margin-top:10px;">Ойлик давомат</p>
+                </div>
+                <div class="card" style="cursor:pointer;" onclick="generateReport('government')">
+                    <h3>🏛️ Давлат ҳисоботлари</h3>
+                    <p style="color:#666;margin-top:10px;">Расмий ҳисобот формалари</p>
+                </div>
+            </div>
+
+            <div id="reportResult" class="table-container" style="display:none;">
+                <div class="table-header">
+                    <h3 id="reportTitle"></h3>
+                    <div class="export-buttons">
+                        <button class="btn btn-success" onclick="exportToExcel('report')">📊 Excel</button>
+                        <button class="btn btn-primary" onclick="exportToWord('report')">📄 Word</button>
+                        <button class="btn btn-warning" onclick="window.print()">🖨️ Чоп этиш</button>
+                    </div>
+                </div>
+                <div id="reportContent"></div>
+            </div>
+        </div>
+
+        <!-- Settings Section -->
+        <div id="settings" class="section">
+            <div class="header">
+                <h1>Созламалар</h1>
+            </div>
+
+            <div class="card">
+                <h3 style="margin-bottom:20px;">Хавфсизлик коди</h3>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Жорий код</label>
+                        <input type="password" id="currentCode" placeholder="Жорий кодни киритинг">
+                    </div>
+                    <div class="form-group">
+                        <label>Янги код (4 рақам)</label>
+                        <input type="password" id="newCode" maxlength="4" placeholder="Янги код">
+                    </div>
+                    <div class="form-group">
+                        <label>Кодни тасдиқланг</label>
+                        <input type="password" id="confirmCode" maxlength="4" placeholder="Кодни қайта киритинг">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="changeSecurityCode()">Кодни ўзгартириш</button>
+            </div>
+
+            <div class="card" style="margin-top:20px;">
+                <h3 style="margin-bottom:20px;">Бўлимлар</h3>
+                <div id="departmentsList"></div>
+                <div class="form-row" style="margin-top:15px;">
+                    <div class="form-group">
+                        <input type="text" id="newDepartment" placeholder="Янги бўлим номи">
+                    </div>
+                </div>
+                <button class="btn btn-primary" onclick="addDepartment()">➕ Бўлим қўшиш</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Employee Modal -->
+    <div class="modal" id="employeeModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>Ходим маълумотлари</h3>
+                <span class="modal-close" onclick="closeModal('employeeModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="employeeId">
+                <h4 style="margin-bottom:15px;color:#1976d2;">Шахсий маълумотлар</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Фамилия *</label>
+                        <input type="text" id="empLastName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Исм *</label>
+                        <input type="text" id="empFirstName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Отасининг исми</label>
+                        <input type="text" id="empMiddleName">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Туғилган сана *</label>
+                        <input type="date" id="empBirthDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Жинси</label>
+                        <select id="empGender">
+                            <option value="male">Эркак</option>
+                            <option value="female">Аёл</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h4 style="margin:20px 0 15px;color:#1976d2;">Паспорт маълумотлари</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Паспорт серияси ва рақами *</label>
+                        <input type="text" id="empPassport" placeholder="AA1234567">
+                    </div>
+                    <div class="form-group">
+                        <label>Берилган сана</label>
+                        <input type="date" id="empPassportDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Амал қилиш муддати</label>
+                        <input type="date" id="empPassportExpiry">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>ИНН</label>
+                        <input type="text" id="empINN" placeholder="123456789">
+                    </div>
+                    <div class="form-group">
+                        <label>ПИНФЛ *</label>
+                        <input type="text" id="empPINFL" placeholder="12345678901234">
+                    </div>
+                </div>
+
+                <h4 style="margin:20px 0 15px;color:#1976d2;">Алоқа маълумотлари</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Телефон *</label>
+                        <input type="tel" id="empPhone" placeholder="+998901234567">
+                    </div>
+                    <div class="form-group">
+                        <label>Электрон почта</label>
+                        <input type="email" id="empEmail">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Манзил</label>
+                    <textarea id="empAddress" rows="2"></textarea>
+                </div>
+
+                <h4 style="margin:20px 0 15px;color:#1976d2;">Иш маълумотлари</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Бўлим *</label>
+                        <select id="empDepartment" required></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Лавозим *</label>
+                        <input type="text" id="empPosition" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ишга қабул санаси *</label>
+                        <input type="date" id="empHireDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Ставка</label>
+                        <select id="empRate">
+                            <option value="1.0">1.0</option>
+                            <option value="0.5">0.5</option>
+                            <option value="0.25">0.25</option>
+                            <option value="1.5">1.5</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Маош (сўм)</label>
+                        <input type="number" id="empSalary">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Иш тури</label>
+                        <select id="empWorkType">
+                            <option value="permanent">Доимий</option>
+                            <option value="temporary">Вақтинча</option>
+                            <option value="contract">Контракт</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Ҳолат</label>
+                        <select id="empStatus">
+                            <option value="active">Фаол</option>
+                            <option value="vacation">Таътилда</option>
+                            <option value="sick">Касал</option>
+                            <option value="dismissed">Ишдан бўшаган</option>
+                        </select>
+                    </div>
+                </div>
+
+                <h4 style="margin:20px 0 15px;color:#1976d2;">Тиббий маълумотнома</h4>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Тиббий маълумотнома санаси</label>
+                        <input type="date" id="empMedicalDate">
+                    </div>
+                    <div class="form-group">
+                        <label>Амал қилиш муддати</label>
+                        <input type="date" id="empMedicalExpiry">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="closeModal('employeeModal')">Бекор қилиш</button>
+                <button class="btn btn-primary" onclick="saveEmployee()">Сақлаш</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Vacation Modal -->
+    <div class="modal" id="vacationModal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header">
+                <h3>Таътил бериш</h3>
+                <span class="modal-close" onclick="closeModal('vacationModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="vacationId">
+                <div class="form-group">
+                    <label>Ходим *</label>
+                    <select id="vacEmployee" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Таътил тури *</label>
+                    <select id="vacType">
+                        <option value="annual">Асосий йиллик таътил</option>
+                        <option value="additional">Қўшимча таътил</option>
+                        <option value="unpaid">Иш ҳақи сақланмаган таътил</option>
+                        <option value="study">Ўқиш таътили</option>
+                        <option value="maternity">Она таътили</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Бошланиш санаси *</label>
+                        <input type="date" id="vacStartDate" required onchange="calculateVacationDays()">
+                    </div>
+                    <div class="form-group">
+                        <label>Тугаш санаси *</label>
+                        <input type="date" id="vacEndDate" required onchange="calculateVacationDays()">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Кунлар сони</label>
+                    <input type="number" id="vacDays" readonly>
+                </div>
+                <div class="form-group">
+                    <label>Буйруқ рақами</label>
+                    <input type="text" id="vacOrderNumber">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="closeModal('vacationModal')">Бекор қилиш</button>
+                <button class="btn btn-primary" onclick="saveVacation()">Сақлаш</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Sick Leave Modal -->
+    <div class="modal" id="sickLeaveModal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header">
+                <h3>Касаллик варақаси</h3>
+                <span class="modal-close" onclick="closeModal('sickLeaveModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="sickLeaveId">
+                <div class="form-group">
+                    <label>Ходим *</label>
+                    <select id="slEmployee" required></select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Бошланиш санаси *</label>
+                        <input type="date" id="slStartDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Тугаш санаси *</label>
+                        <input type="date" id="slEndDate" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Тури</label>
+                    <select id="slType">
+                        <option value="paid">Тўловли</option>
+                        <option value="unpaid">Тўловсиз</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Изоҳ</label>
+                    <textarea id="slNote" rows="2"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="closeModal('sickLeaveModal')">Бекор қилиш</button>
+                <button class="btn btn-primary" onclick="saveSickLeave()">Сақлаш</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Order Modal -->
+    <div class="modal" id="orderModal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header">
+                <h3>Буйруқ</h3>
+                <span class="modal-close" onclick="closeModal('orderModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="orderId">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Буйруқ рақами *</label>
+                        <input type="text" id="orderNumber" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Сана *</label>
+                        <input type="date" id="orderDate" required>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>Буйруқ тури *</label>
+                    <select id="orderType">
+                        <option value="hiring">Ишга қабул</option>
+                        <option value="dismissal">Ишдан бўшатиш</option>
+                        <option value="vacation">Таътил</option>
+                        <option value="transfer">Ўтказиш</option>
+                        <option value="salary">Маош ўзгариши</option>
+                        <option value="other">Бошқа</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Ходим</label>
+                    <select id="orderEmployee"></select>
+                </div>
+                <div class="form-group">
+                    <label>Мазмуни *</label>
+                    <textarea id="orderContent" rows="4" required></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="closeModal('orderModal')">Бекор қилиш</button>
+                <button class="btn btn-primary" onclick="saveOrder()">Сақлаш</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Movement Modal -->
+    <div class="modal" id="movementModal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header">
+                <h3>Кадрлар ҳаракати</h3>
+                <span class="modal-close" onclick="closeModal('movementModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="movementId">
+                <div class="form-group">
+                    <label>Ходим *</label>
+                    <select id="movEmployee" required onchange="loadEmployeeCurrentData()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Ҳаракат тури *</label>
+                    <select id="movType">
+                        <option value="position">Лавозимни ўзгартириш</option>
+                        <option value="department">Бўлимни алмаштириш</option>
+                        <option value="salary_up">Маошни ошириш</option>
+                        <option value="salary_down">Маошни камайтириш</option>
+                        <option value="temporary">Вақтинча вазифа</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Эски қиймат</label>
+                        <input type="text" id="movOldValue" readonly>
+                    </div>
+                    <div class="form-group">
+                        <label>Янги қиймат *</label>
+                        <input type="text" id="movNewValue" required>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Сана *</label>
+                        <input type="date" id="movDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Буйруқ рақами</label>
+                        <input type="text" id="movOrderNumber">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="closeModal('movementModal')">Бекор қилиш</button>
+                <button class="btn btn-primary" onclick="saveMovement()">Сақлаш</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Position Modal -->
+    <div class="modal" id="positionModal">
+        <div class="modal-content" style="max-width:500px;">
+            <div class="modal-header">
+                <h3>Штат бирлиги</h3>
+                <span class="modal-close" onclick="closeModal('positionModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="positionId">
+                <div class="form-group">
+                    <label>Бўлим *</label>
+                    <select id="posDepartment" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Лавозим номи *</label>
+                    <input type="text" id="posName" required>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Штат бирлиги сони *</label>
+                        <input type="number" id="posCount" min="1" value="1" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Оклад (сўм) *</label>
+                        <input type="number" id="posSalary" required>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="closeModal('positionModal')">Бекор қилиш</button>
+                <button class="btn btn-primary" onclick="savePosition()">Сақлаш</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Hiring Modal -->
+    <div class="modal" id="hiringModal">
+        <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header">
+                <h3>Ишга қабул қилиш</h3>
+                <span class="modal-close" onclick="closeModal('hiringModal')">&times;</span>
+            </div>
+            <div class="modal-body">
+                <p style="color:#666;margin-bottom:20px;">Аввал ходим маълумотларини киритинг, сўнгра ишга қабул расмийлаштиринг.</p>
+                <div class="form-group">
+                    <label>Ходим *</label>
+                    <select id="hirEmployee" required></select>
+                </div>
+                <div class="form-group">
+                    <label>Иш тури *</label>
+                    <select id="hirWorkType">
+                        <option value="permanent">Доимий</option>
+                        <option value="temporary">Вақтинча</option>
+                        <option value="contract">Контракт</option>
+                    </select>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Ставка</label>
+                        <select id="hirRate">
+                            <option value="1.0">1.0</option>
+                            <option value="0.5">0.5</option>
+                            <option value="0.25">0.25</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>Синов муддати (кун)</label>
+                        <input type="number" id="hirProbation" value="0">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label>Қабул санаси *</label>
+                        <input type="date" id="hirDate" required>
+                    </div>
+                    <div class="form-group">
+                        <label>Буйруқ рақами *</label>
+                        <input type="text" id="hirOrderNumber" required>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-danger" onclick="closeModal('hiringModal')">Бекор қилиш</button>
+                <button class="btn btn-primary" onclick="saveHiring()">Сақлаш</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ========== DATA STORAGE ==========
+        let data = {
+            employees: [],
+            vacations: [],
+            sickLeaves: [],
+            orders: [],
+            movements: [],
+            positions: [],
+            attendance: {},
+            timesheet: {},
+            contracts: [],
+            reminders: [],
+            hirings: [],
+            departments: ['Бошқарув', 'Молия бўлими', 'Кадрлар бўлими', 'ИТ бўлим', 'Ишлаб чиқариш', 'Маркетинг'],
+            securityCode: '1234'
+        };
+
+        let pendingAction = null;
+
+        // Load data from localStorage
+        function loadData() {
+            const saved = localStorage.getItem('hrSystemData');
+            if (saved) {
+                data = JSON.parse(saved);
+            }
+            updateAllViews();
+        }
+
+        // Save data to localStorage
+        function saveData() {
+            localStorage.setItem('hrSystemData', JSON.stringify(data));
+        }
+
+        // ========== SECURITY ==========
+        function requireSecurity(action) {
+            pendingAction = action;
+            document.getElementById('securityOverlay').classList.add('active');
+            document.getElementById('securityCode').value = '';
+            document.getElementById('securityCode').focus();
+        }
+
+        function checkSecurityCode() {
+            const code = document.getElementById('securityCode').value;
+            if (code === data.securityCode) {
+                document.getElementById('securityOverlay').classList.remove('active');
+                document.getElementById('securityError').style.display = 'none';
+                if (pendingAction) {
+                    pendingAction();
+                    pendingAction = null;
+                }
+            } else {
+                document.getElementById('securityError').style.display = 'block';
+            }
+        }
+
+        function cancelSecurity() {
+            document.getElementById('securityOverlay').classList.remove('active');
+            pendingAction = null;
+        }
+
+        function changeSecurityCode() {
+            const current = document.getElementById('currentCode').value;
+            const newCode = document.getElementById('newCode').value;
+            const confirm = document.getElementById('confirmCode').value;
+
+            if (current !== data.securityCode) {
+                alert('Жорий код нотўғри!');
+                return;
+            }
+            if (newCode.length !== 4 || !/^\d+$/.test(newCode)) {
+                alert('Янги код 4 та рақамдан иборат бўлиши керак!');
+                return;
+            }
+            if (newCode !== confirm) {
+                alert('Кодлар мос келмади!');
+                return;
+            }
+
+            data.securityCode = newCode;
+            saveData();
+            alert('Код муваффақиятли ўзгартирилди!');
+            document.getElementById('currentCode').value = '';
+            document.getElementById('newCode').value = '';
+            document.getElementById('confirmCode').value = '';
+        }
+
+        // ========== NAVIGATION ==========
+        function showSection(sectionId) {
+            document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+            document.getElementById(sectionId).classList.add('active');
+            document.querySelectorAll('.sidebar a').forEach(a => a.classList.remove('active'));
+            event.target.classList.add('active');
+
+            // Load section-specific data
+            if (sectionId === 'attendance') {
+                document.getElementById('attendanceDate').valueAsDate = new Date();
+                loadAttendance();
+            } else if (sectionId === 'timesheet') {
+                document.getElementById('timesheetMonth').value = new Date().getMonth() + 1;
+                loadTimesheet();
+            }
+        }
+
+        // ========== MODAL FUNCTIONS ==========
+        function openModal(modalId) {
+            requireSecurity(() => {
+                document.getElementById(modalId).classList.add('active');
+                populateSelects();
+            });
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).classList.remove('active');
+            clearModalInputs(modalId);
+        }
+
+        function clearModalInputs(modalId) {
+            const modal = document.getElementById(modalId);
+            modal.querySelectorAll('input:not([type="hidden"]), textarea').forEach(input => {
+                if (input.type !== 'date') input.value = '';
+            });
+            modal.querySelectorAll('select').forEach(select => select.selectedIndex = 0);
+        }
+
+        // ========== EMPLOYEE FUNCTIONS ==========
+        function saveEmployee() {
+            const id = document.getElementById('employeeId').value;
+            const employee = {
+                id: id || Date.now().toString(),
+                lastName: document.getElementById('empLastName').value,
+                firstName: document.getElementById('empFirstName').value,
+                middleName: document.getElementById('empMiddleName').value,
+                birthDate: document.getElementById('empBirthDate').value,
+                gender: document.getElementById('empGender').value,
+                passport: document.getElementById('empPassport').value,
+                passportDate: document.getElementById('empPassportDate').value,
+                passportExpiry: document.getElementById('empPassportExpiry').value,
+                inn: document.getElementById('empINN').value,
+                pinfl: document.getElementById('empPINFL').value,
+                phone: document.getElementById('empPhone').value,
+                email: document.getElementById('empEmail').value,
+                address: document.getElementById('empAddress').value,
+                department: document.getElementById('empDepartment').value,
+                position: document.getElementById('empPosition').value,
+                hireDate: document.getElementById('empHireDate').value,
+                rate: document.getElementById('empRate').value,
+                salary: document.getElementById('empSalary').value,
+                workType: document.getElementById('empWorkType').value,
+                status: document.getElementById('empStatus').value,
+                medicalDate: document.getElementById('empMedicalDate').value,
+                medicalExpiry: document.getElementById('empMedicalExpiry').value
+            };
+
+            if (!employee.lastName || !employee.firstName || !employee.department || !employee.position) {
+                alert('Илтимос, барча мажбурий майдонларни тўлдиринг!');
+                return;
+            }
+
+            if (id) {
+                const index = data.employees.findIndex(e => e.id === id);
+                data.employees[index] = employee;
+            } else {
+                data.employees.push(employee);
+                // Auto-create reminders
+                createAutoReminders(employee);
+            }
+
+            saveData();
+            closeModal('employeeModal');
+            updateAllViews();
+        }
+
+        function editEmployee(id) {
+            requireSecurity(() => {
+                const emp = data.employees.find(e => e.id === id);
+                if (!emp) return;
+
+                document.getElementById('employeeId').value = emp.id;
+                document.getElementById('empLastName').value = emp.lastName;
+                document.getElementById('empFirstName').value = emp.firstName;
+                document.getElementById('empMiddleName').value = emp.middleName || '';
+                document.getElementById('empBirthDate').value = emp.birthDate;
+                document.getElementById('empGender').value = emp.gender;
+                document.getElementById('empPassport').value = emp.passport;
+                document.getElementById('empPassportDate').value = emp.passportDate || '';
+                document.getElementById('empPassportExpiry').value = emp.passportExpiry || '';
+                document.getElementById('empINN').value = emp.inn || '';
+                document.getElementById('empPINFL').value = emp.pinfl || '';
+                document.getElementById('empPhone').value = emp.phone;
+                document.getElementById('empEmail').value = emp.email || '';
+                document.getElementById('empAddress').value = emp.address || '';
+                document.getElementById('empDepartment').value = emp.department;
+                document.getElementById('empPosition').value = emp.position;
+                document.getElementById('empHireDate').value = emp.hireDate;
+                document.getElementById('empRate').value = emp.rate;
+                document.getElementById('empSalary').value = emp.salary || '';
+                document.getElementById('empWorkType').value = emp.workType;
+                document.getElementById('empStatus').value = emp.status;
+                document.getElementById('empMedicalDate').value = emp.medicalDate || '';
+                document.getElementById('empMedicalExpiry').value = emp.medicalExpiry || '';
+
+                populateSelects();
+                document.getElementById('employeeModal').classList.add('active');
+            });
+        }
+
+        function deleteEmployee(id) {
+            requireSecurity(() => {
+                if (confirm('Ҳақиқатан ўчирмоқчимисиз?')) {
+                    data.employees = data.employees.filter(e => e.id !== id);
+                    saveData();
+                    updateAllViews();
+                }
+            });
+        }
+
+        function createAutoReminders(employee) {
+            // Birthday reminder
+            if (employee.birthDate) {
+                data.reminders.push({
+                    id: Date.now().toString() + '_bd',
+                    employeeId: employee.id,
+                    type: 'birthday',
+                    description: 'Туғилган кун',
+                    date: employee.birthDate,
+                    recurring: true
+                });
+            }
+            // Passport expiry reminder
+            if (employee.passportExpiry) {
+                data.reminders.push({
+                    id: Date.now().toString() + '_pe',
+                    employeeId: employee.id,
+                    type: 'passport',
+                    description: 'Паспорт муддати тугайди',
+                    date: employee.passportExpiry,
+                    recurring: false
+                });
+            }
+            // Medical certificate expiry
+            if (employee.medicalExpiry) {
+                data.reminders.push({
+                    id: Date.now().toString() + '_me',
+                    employeeId: employee.id,
+                    type: 'medical',
+                    description: 'Тиббий маълумотнома муддати тугайди',
+                    date: employee.medicalExpiry,
+                    recurring: false
+                });
+            }
+        }
+
+        // ========== VACATION FUNCTIONS ==========
+        function saveVacation() {
+            const id = document.getElementById('vacationId').value;
+            const vacation = {
+                id: id || Date.now().toString(),
+                employeeId: document.getElementById('vacEmployee').value,
+                type: document.getElementById('vacType').value,
+                startDate: document.getElementById('vacStartDate').value,
+                endDate: document.getElementById('vacEndDate').value,
+                days: parseInt(document.getElementById('vacDays').value),
+                orderNumber: document.getElementById('vacOrderNumber').value,
+                status: 'active'
+            };
+
+            if (!vacation.employeeId || !vacation.startDate || !vacation.endDate) {
+                alert('Илтимос, барча мажбурий майдонларни тўлдиринг!');
+                return;
+            }
+
+            if (id) {
+                const index = data.vacations.findIndex(v => v.id === id);
+                data.vacations[index] = vacation;
+            } else {
+                data.vacations.push(vacation);
+                // Create vacation start reminder
+                data.reminders.push({
+                    id: Date.now().toString() + '_vs',
+                    employeeId: vacation.employeeId,
+                    type: 'vacation_start',
+                    description: 'Таътил бошланади',
+                    date: vacation.startDate,
+                    recurring: false
+                });
+            }
+
+            saveData();
+            closeModal('vacationModal');
+            updateAllViews();
+        }
+
+        function calculateVacationDays() {
+            const start = new Date(document.getElementById('vacStartDate').value);
+            const end = new Date(document.getElementById('vacEndDate').value);
+            if (start && end && end >= start) {
+                const days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                document.getElementById('vacDays').value = days;
+            }
+        }
+
+        function calculateVacationBalance(employeeId) {
+            const employee = data.employees.find(e => e.id === employeeId);
+            if (!employee) return { total: 0, used: 0, remaining: 0 };
+
+            const hireDate = new Date(employee.hireDate);
+            const now = new Date();
+            const yearsWorked = (now - hireDate) / (1000 * 60 * 60 * 24 * 365);
+
+            // Basic 15 days + additional based on years
+            let totalDays = 15;
+            if (yearsWorked >= 5) totalDays += 3;
+            if (yearsWorked >= 10) totalDays += 3;
+
+            // Calculate used days (only count up to 14 days of unpaid leave)
+            let usedDays = 0;
+            let unpaidDays = 0;
+
+            const currentYearVacations = data.vacations.filter(v => {
+                const vDate = new Date(v.startDate);
+                return v.employeeId === employeeId &&
+                       vDate.getFullYear() === now.getFullYear();
+            });
+
+            currentYearVacations.forEach(v => {
+                if (v.type === 'unpaid') {
+                    unpaidDays += v.days;
+                    // Only count first 14 days of unpaid leave
+                    usedDays += Math.min(v.days, Math.max(0, 14 - (unpaidDays - v.days)));
+                } else if (v.type === 'annual' || v.type === 'additional') {
+                    usedDays += v.days;
+                }
+            });
+
+            return {
+                total: totalDays,
+                used: usedDays,
+                remaining: totalDays - usedDays,
+                workYear: `${hireDate.toLocaleDateString()} - ${new Date(hireDate.setFullYear(hireDate.getFullYear() + Math.floor(yearsWorked) + 1)).toLocaleDateString()}`
+            };
+        }
+
+        function showVacationTab(tab) {
+            document.querySelectorAll('#vacations .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+
+            document.getElementById('vacationList').style.display = tab === 'list' ? 'block' : 'none';
+            document.getElementById('vacationSchedule').style.display = tab === 'schedule' ? 'block' : 'none';
+            document.getElementById('vacationBalance').style.display = tab === 'balance' ? 'block' : 'none';
+
+            if (tab === 'balance') {
+                loadVacationBalance();
+            }
+        }
+
+        function loadVacationBalance() {
+            const tbody = document.getElementById('vacationBalanceBody');
+            tbody.innerHTML = '';
+
+            data.employees.filter(e => e.status === 'active').forEach(emp => {
+                const balance = calculateVacationBalance(emp.id);
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${emp.lastName} ${emp.firstName}</td>
+                        <td>${balance.workYear}</td>
+                        <td>${balance.total}</td>
+                        <td>${balance.used}</td>
+                        <td><span class="badge ${balance.remaining > 0 ? 'badge-success' : 'badge-danger'}">${balance.remaining}</span></td>
+                    </tr>
+                `;
+            });
+        }
+
+        // ========== SICK LEAVE FUNCTIONS ==========
+        function saveSickLeave() {
+            const id = document.getElementById('sickLeaveId').value;
+            const sickLeave = {
+                id: id || Date.now().toString(),
+                employeeId: document.getElementById('slEmployee').value,
+                startDate: document.getElementById('slStartDate').value,
+                endDate: document.getElementById('slEndDate').value,
+                type: document.getElementById('slType').value,
+                note: document.getElementById('slNote').value
+            };
+
+            const start = new Date(sickLeave.startDate);
+            const end = new Date(sickLeave.endDate);
+            sickLeave.days = Math.ceil((end - start) / (1000 * 60 * 60 * 24)) + 1;
+
+            if (id) {
+                const index = data.sickLeaves.findIndex(s => s.id === id);
+                data.sickLeaves[index] = sickLeave;
+            } else {
+                data.sickLeaves.push(sickLeave);
+            }
+
+            saveData();
+            closeModal('sickLeaveModal');
+            updateAllViews();
+        }
+
+        // ========== ORDER FUNCTIONS ==========
+        function saveOrder() {
+            const id = document.getElementById('orderId').value;
+            const order = {
+                id: id || Date.now().toString(),
+                number: document.getElementById('orderNumber').value,
+                date: document.getElementById('orderDate').value,
+                type: document.getElementById('orderType').value,
+                employeeId: document.getElementById('orderEmployee').value,
+                content: document.getElementById('orderContent').value
+            };
+
+            if (id) {
+                const index = data.orders.findIndex(o => o.id === id);
+                data.orders[index] = order;
+            } else {
+                data.orders.push(order);
+            }
+
+            saveData();
+            closeModal('orderModal');
+            updateAllViews();
+        }
+
+        function filterOrders() {
+            const empFilter = document.getElementById('orderEmployeeFilter').value;
+            const typeFilter = document.getElementById('orderTypeFilter').value;
+
+            let filtered = data.orders;
+            if (empFilter) filtered = filtered.filter(o => o.employeeId === empFilter);
+            if (typeFilter) filtered = filtered.filter(o => o.type === typeFilter);
+
+            renderOrdersTable(filtered);
+        }
+
+        // ========== MOVEMENT FUNCTIONS ==========
+        function saveMovement() {
+            const id = document.getElementById('movementId').value;
+            const movement = {
+                id: id || Date.now().toString(),
+                employeeId: document.getElementById('movEmployee').value,
+                type: document.getElementById('movType').value,
+                oldValue: document.getElementById('movOldValue').value,
+                newValue: document.getElementById('movNewValue').value,
+                date: document.getElementById('movDate').value,
+                orderNumber: document.getElementById('movOrderNumber').value
+            };
+
+            // Update employee data based on movement type
+            const emp = data.employees.find(e => e.id === movement.employeeId);
+            if (emp) {
+                if (movement.type === 'position') emp.position = movement.newValue;
+                if (movement.type === 'department') emp.department = movement.newValue;
+                if (movement.type === 'salary_up' || movement.type === 'salary_down') {
+                    emp.salary = movement.newValue;
+                }
+            }
+
+            if (id) {
+                const index = data.movements.findIndex(m => m.id === id);
+                data.movements[index] = movement;
+            } else {
+                data.movements.push(movement);
+            }
+
+            saveData();
+            closeModal('movementModal');
+            updateAllViews();
+        }
+
+        function loadEmployeeCurrentData() {
+            const empId = document.getElementById('movEmployee').value;
+            const emp = data.employees.find(e => e.id === empId);
+            const type = document.getElementById('movType').value;
+
+            if (emp) {
+                let oldValue = '';
+                if (type === 'position') oldValue = emp.position;
+                if (type === 'department') oldValue = emp.department;
+                if (type === 'salary_up' || type === 'salary_down') oldValue = emp.salary;
+                document.getElementById('movOldValue').value = oldValue;
+            }
+        }
+
+        // ========== POSITION (STAFFING) FUNCTIONS ==========
+        function savePosition() {
+            const id = document.getElementById('positionId').value;
+            const position = {
+                id: id || Date.now().toString(),
+                department: document.getElementById('posDepartment').value,
+                name: document.getElementById('posName').value,
+                count: parseInt(document.getElementById('posCount').value),
+                salary: parseInt(document.getElementById('posSalary').value)
+            };
+
+            if (id) {
+                const index = data.positions.findIndex(p => p.id === id);
+                data.positions[index] = position;
+            } else {
+                data.positions.push(position);
+            }
+
+            saveData();
+            closeModal('positionModal');
+            updateAllViews();
+        }
+
+        // ========== HIRING FUNCTIONS ==========
+        function saveHiring() {
+            const hiring = {
+                id: Date.now().toString(),
+                employeeId: document.getElementById('hirEmployee').value,
+                workType: document.getElementById('hirWorkType').value,
+                rate: document.getElementById('hirRate').value,
+                probation: document.getElementById('hirProbation').value,
+                date: document.getElementById('hirDate').value,
+                orderNumber: document.getElementById('hirOrderNumber').value
+            };
+
+            // Update employee
+            const emp = data.employees.find(e => e.id === hiring.employeeId);
+            if (emp) {
+                emp.hireDate = hiring.date;
+                emp.workType = hiring.workType;
+                emp.rate = hiring.rate;
+            }
+
+            data.hirings.push(hiring);
+
+            // Create order
+            data.orders.push({
+                id: Date.now().toString() + '_o',
+                number: hiring.orderNumber,
+                date: hiring.date,
+                type: 'hiring',
+                employeeId: hiring.employeeId,
+                content: `${emp.lastName} ${emp.firstName}ни ${emp.position} лавозимига ишга қабул қилиш тўғрисида`
+            });
+
+            saveData();
+            closeModal('hiringModal');
+            updateAllViews();
+        }
+
+        // ========== ATTENDANCE FUNCTIONS ==========
+        function loadAttendance() {
+            const date = document.getElementById('attendanceDate').value;
+            if (!date) return;
+
+            const tbody = document.getElementById('attendanceTableBody');
+            tbody.innerHTML = '';
+
+            const dayAttendance = data.attendance[date] || {};
+
+            data.employees.filter(e => e.status === 'active').forEach((emp, i) => {
+                const att = dayAttendance[emp.id] || {};
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${emp.lastName} ${emp.firstName}</td>
+                        <td>${emp.department}</td>
+                        <td><input type="time" value="${att.in || ''}" onchange="updateAttendance('${emp.id}', 'in', this.value)"></td>
+                        <td><input type="time" value="${att.out || ''}" onchange="updateAttendance('${emp.id}', 'out', this.value)"></td>
+                        <td>
+                            <select onchange="updateAttendance('${emp.id}', 'status', this.value)">
+                                <option value="present" ${att.status === 'present' ? 'selected' : ''}>Келди</option>
+                                <option value="absent" ${att.status === 'absent' ? 'selected' : ''}>Келмади</option>
+                                <option value="late" ${att.status === 'late' ? 'selected' : ''}>Кечикди</option>
+                                <option value="vacation" ${att.status === 'vacation' ? 'selected' : ''}>Таътилда</option>
+                                <option value="sick" ${att.status === 'sick' ? 'selected' : ''}>Касал</option>
+                                <option value="remote" ${att.status === 'remote' ? 'selected' : ''}>Remote</option>
+                            </select>
+                        </td>
+                        <td><input type="text" value="${att.note || ''}" onchange="updateAttendance('${emp.id}', 'note', this.value)" style="width:150px;"></td>
+                        <td>
+                            <button class="btn btn-sm btn-success" onclick="quickAttendance('${emp.id}', 'present')">✓</button>
+                            <button class="btn btn-sm btn-danger" onclick="quickAttendance('${emp.id}', 'absent')">✗</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function updateAttendance(empId, field, value) {
+            const date = document.getElementById('attendanceDate').value;
+            if (!data.attendance[date]) data.attendance[date] = {};
+            if (!data.attendance[date][empId]) data.attendance[date][empId] = {};
+            data.attendance[date][empId][field] = value;
+            saveData();
+        }
+
+        function quickAttendance(empId, status) {
+            const date = document.getElementById('attendanceDate').value;
+            if (!data.attendance[date]) data.attendance[date] = {};
+            data.attendance[date][empId] = {
+                status: status,
+                in: status === 'present' ? '09:00' : '',
+                out: status === 'present' ? '18:00' : ''
+            };
+            saveData();
+            loadAttendance();
+        }
+
+        function markAllPresent() {
+            requireSecurity(() => {
+                const date = document.getElementById('attendanceDate').value;
+                if (!data.attendance[date]) data.attendance[date] = {};
+
+                data.employees.filter(e => e.status === 'active').forEach(emp => {
+                    data.attendance[date][emp.id] = {
+                        status: 'present',
+                        in: '09:00',
+                        out: '18:00'
+                    };
+                });
+
+                saveData();
+                loadAttendance();
+            });
+        }
+
+        // ========== TIMESHEET FUNCTIONS ==========
+        function loadTimesheet() {
+            const month = parseInt(document.getElementById('timesheetMonth').value);
+            const year = parseInt(document.getElementById('timesheetYear').value);
+
+            const daysInMonth = new Date(year, month, 0).getDate();
+
+            // Header
+            let headerHTML = '<tr><th>№</th><th>Ходим</th>';
+            for (let d = 1; d <= daysInMonth; d++) {
+                const date = new Date(year, month - 1, d);
+                const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+                headerHTML += `<th style="${isWeekend ? 'background:#ffebee;' : ''}">${d}</th>`;
+            }
+            headerHTML += '<th>Жами</th></tr>';
+            document.getElementById('timesheetHeader').innerHTML = headerHTML;
+
+            // Body
+            const tbody = document.getElementById('timesheetBody');
+            tbody.innerHTML = '';
+
+            data.employees.filter(e => e.status !== 'dismissed').forEach((emp, i) => {
+                let row = `<tr><td>${i + 1}</td><td style="white-space:nowrap;">${emp.lastName} ${emp.firstName.charAt(0)}.</td>`;
+                let totalHours = 0;
+
+                for (let d = 1; d <= daysInMonth; d++) {
+                    const dateStr = `${year}-${String(month).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+                    const date = new Date(year, month - 1, d);
+                    const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+
+                    const att = data.attendance[dateStr]?.[emp.id];
+                    let cellContent = '';
+                    let cellStyle = isWeekend ? 'background:#ffebee;' : '';
+
+                    if (att) {
+                        if (att.status === 'present') {
+                            cellContent = '8';
+                            totalHours += 8;
+                        } else if (att.status === 'late') {
+                            cellContent = 'К';
+                            totalHours += 7;
+                        } else if (att.status === 'absent') {
+                            cellContent = 'Н';
+                            cellStyle += 'color:#d32f2f;';
+                        } else if (att.status === 'vacation') {
+                            cellContent = 'Т';
+                            cellStyle += 'color:#1976d2;';
+                        } else if (att.status === 'sick') {
+                            cellContent = 'Б';
+                            cellStyle += 'color:#f57c00;';
+                        } else if (att.status === 'remote') {
+                            cellContent = 'R';
+                            totalHours += 8;
+                        }
+                    } else if (isWeekend) {
+                        cellContent = 'Д';
+                    }
+
+                    row += `<td style="${cellStyle}text-align:center;">${cellContent}</td>`;
+                }
+
+                row += `<td style="font-weight:bold;">${totalHours}</td></tr>`;
+                tbody.innerHTML += row;
+            });
+        }
+
+        // ========== REMINDERS FUNCTIONS ==========
+        function loadReminders() {
+            const today = new Date();
+            const urgentDiv = document.getElementById('urgentReminders');
+            const upcomingDiv = document.getElementById('upcomingReminders');
+            const birthdayDiv = document.getElementById('birthdayReminders');
+            const todayDiv = document.getElementById('todayReminders');
+
+            urgentDiv.innerHTML = '';
+            upcomingDiv.innerHTML = '';
+            birthdayDiv.innerHTML = '';
+            if (todayDiv) todayDiv.innerHTML = '';
+
+            data.reminders.forEach(rem => {
+                const emp = data.employees.find(e => e.id === rem.employeeId);
+                if (!emp) return;
+
+                let remDate = new Date(rem.date);
+
+                // For birthdays, set to current year
+                if (rem.type === 'birthday') {
+                    remDate.setFullYear(today.getFullYear());
+                    if (remDate < today) remDate.setFullYear(today.getFullYear() + 1);
+                }
+
+                const daysUntil = Math.ceil((remDate - today) / (1000 * 60 * 60 * 24));
+
+                const reminderHTML = `
+                    <div class="reminder-item ${daysUntil <= 3 ? 'urgent' : ''}">
+                        <h4>${emp.lastName} ${emp.firstName}</h4>
+                        <p>${rem.description} - ${remDate.toLocaleDateString()}</p>
+                        <p style="font-size:12px;color:#999;">${daysUntil} кун қолди</p>
+                    </div>
+                `;
+
+                if (rem.type === 'birthday') {
+                    birthdayDiv.innerHTML += reminderHTML;
+                } else if (daysUntil <= 7 && daysUntil > 0) {
+                    urgentDiv.innerHTML += reminderHTML;
+                } else if (daysUntil <= 30 && daysUntil > 7) {
+                    upcomingDiv.innerHTML += reminderHTML;
+                }
+
+                if (daysUntil <= 7 && daysUntil >= 0 && todayDiv) {
+                    todayDiv.innerHTML += reminderHTML;
+                }
+            });
+
+            // Add vacation start reminders
+            data.vacations.filter(v => {
+                const startDate = new Date(v.startDate);
+                const daysUntil = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+                return daysUntil <= 7 && daysUntil >= 0;
+            }).forEach(v => {
+                const emp = data.employees.find(e => e.id === v.employeeId);
+                if (emp && todayDiv) {
+                    todayDiv.innerHTML += `
+                        <div class="reminder-item">
+                            <h4>${emp.lastName} ${emp.firstName}</h4>
+                            <p>Таътил бошланади - ${new Date(v.startDate).toLocaleDateString()}</p>
+                        </div>
+                    `;
+                }
+            });
+        }
+
+        // ========== REPORTS ==========
+        function generateReport(type) {
+            document.getElementById('reportResult').style.display = 'block';
+            const titleEl = document.getElementById('reportTitle');
+            const contentEl = document.getElementById('reportContent');
+
+            if (type === 'employees') {
+                titleEl.textContent = 'Ходимлар ҳисоботи';
+                let html = '<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="border:1px solid #ddd;padding:10px;">Бўлим</th><th style="border:1px solid #ddd;padding:10px;">Сони</th><th style="border:1px solid #ddd;padding:10px;">Ўртача маош</th></tr></thead><tbody>';
+
+                data.departments.forEach(dept => {
+                    const deptEmps = data.employees.filter(e => e.department === dept && e.status === 'active');
+                    const avgSalary = deptEmps.length ? deptEmps.reduce((sum, e) => sum + (parseInt(e.salary) || 0), 0) / deptEmps.length : 0;
+                    html += `<tr><td style="border:1px solid #ddd;padding:10px;">${dept}</td><td style="border:1px solid #ddd;padding:10px;">${deptEmps.length}</td><td style="border:1px solid #ddd;padding:10px;">${avgSalary.toLocaleString()} сўм</td></tr>`;
+                });
+
+                html += '</tbody></table>';
+                contentEl.innerHTML = html;
+            } else if (type === 'turnover') {
+                titleEl.textContent = 'Айланиш ҳисоботи';
+                const currentYear = new Date().getFullYear();
+                const hired = data.hirings.filter(h => new Date(h.date).getFullYear() === currentYear).length;
+                const dismissed = data.employees.filter(e => e.status === 'dismissed').length;
+
+                contentEl.innerHTML = `
+                    <div style="display:flex;gap:50px;padding:20px;">
+                        <div style="text-align:center;">
+                            <h2 style="color:#388e3c;font-size:48px;">${hired}</h2>
+                            <p>Қабул қилинган</p>
+                        </div>
+                        <div style="text-align:center;">
+                            <h2 style="color:#d32f2f;font-size:48px;">${dismissed}</h2>
+                            <p>Бўшатилган</p>
+                        </div>
+                        <div style="text-align:center;">
+                            <h2 style="color:#1976d2;font-size:48px;">${data.employees.filter(e => e.status === 'active').length}</h2>
+                            <p>Жами фаол</p>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'salary') {
+                titleEl.textContent = 'Маош ҳисоботи';
+                const activeEmps = data.employees.filter(e => e.status === 'active');
+                const totalSalary = activeEmps.reduce((sum, e) => sum + (parseInt(e.salary) || 0), 0);
+                const avgSalary = activeEmps.length ? totalSalary / activeEmps.length : 0;
+
+                contentEl.innerHTML = `
+                    <div style="display:flex;gap:50px;padding:20px;">
+                        <div style="text-align:center;">
+                            <h2 style="color:#1976d2;font-size:36px;">${totalSalary.toLocaleString()}</h2>
+                            <p>Жами ФОТ (сўм)</p>
+                        </div>
+                        <div style="text-align:center;">
+                            <h2 style="color:#388e3c;font-size:36px;">${Math.round(avgSalary).toLocaleString()}</h2>
+                            <p>Ўртача маош (сўм)</p>
+                        </div>
+                    </div>
+                `;
+            } else if (type === 'attendance') {
+                titleEl.textContent = 'Давомат ҳисоботи';
+                const month = new Date().getMonth();
+                const year = new Date().getFullYear();
+
+                let html = '<table style="width:100%;border-collapse:collapse;"><thead><tr><th style="border:1px solid #ddd;padding:10px;">Ходим</th><th style="border:1px solid #ddd;padding:10px;">Келган кунлар</th><th style="border:1px solid #ddd;padding:10px;">Келмаган</th><th style="border:1px solid #ddd;padding:10px;">Кечикган</th></tr></thead><tbody>';
+
+                data.employees.filter(e => e.status === 'active').forEach(emp => {
+                    let present = 0, absent = 0, late = 0;
+
+                    Object.keys(data.attendance).forEach(dateStr => {
+                        const date = new Date(dateStr);
+                        if (date.getMonth() === month && date.getFullYear() === year) {
+                            const att = data.attendance[dateStr][emp.id];
+                            if (att) {
+                                if (att.status === 'present') present++;
+                                else if (att.status === 'absent') absent++;
+                                else if (att.status === 'late') late++;
+                            }
+                        }
+                    });
+
+                    html += `<tr><td style="border:1px solid #ddd;padding:10px;">${emp.lastName} ${emp.firstName}</td><td style="border:1px solid #ddd;padding:10px;">${present}</td><td style="border:1px solid #ddd;padding:10px;">${absent}</td><td style="border:1px solid #ddd;padding:10px;">${late}</td></tr>`;
+                });
+
+                html += '</tbody></table>';
+                contentEl.innerHTML = html;
+            }
+        }
+
+        // ========== EXPORT FUNCTIONS ==========
+        function exportToExcel(section) {
+            let csvContent = "data:text/csv;charset=utf-8,﻿";
+            let rows = [];
+
+            if (section === 'employees') {
+                rows.push(['№', 'Ф.И.О.', 'Лавозим', 'Бўлим', 'Телефон', 'Ишга қабул', 'Ҳолат']);
+                data.employees.forEach((emp, i) => {
+                    rows.push([i + 1, `${emp.lastName} ${emp.firstName} ${emp.middleName || ''}`, emp.position, emp.department, emp.phone, emp.hireDate, emp.status]);
+                });
+            } else if (section === 'vacations') {
+                rows.push(['№', 'Ходим', 'Тури', 'Бошланиш', 'Тугаш', 'Кунлар']);
+                data.vacations.forEach((v, i) => {
+                    const emp = data.employees.find(e => e.id === v.employeeId);
+                    rows.push([i + 1, emp ? `${emp.lastName} ${emp.firstName}` : '', v.type, v.startDate, v.endDate, v.days]);
+                });
+            } else if (section === 'attendance') {
+                const date = document.getElementById('attendanceDate').value;
+                rows.push(['№', 'Ходим', 'Бўлим', 'Келди', 'Кетди', 'Ҳолат']);
+                const dayAtt = data.attendance[date] || {};
+                data.employees.filter(e => e.status === 'active').forEach((emp, i) => {
+                    const att = dayAtt[emp.id] || {};
+                    rows.push([i + 1, `${emp.lastName} ${emp.firstName}`, emp.department, att.in || '', att.out || '', att.status || '']);
+                });
+            }
+
+            rows.forEach(row => {
+                csvContent += row.join(',') + '\r\n';
+            });
+
+            const link = document.createElement('a');
+            link.href = encodeURI(csvContent);
+            link.download = `${section}_${new Date().toISOString().slice(0, 10)}.csv`;
+            link.click();
+        }
+
+        function exportToWord(section) {
+            let content = `<html><head><meta charset="utf-8"></head><body>`;
+            content += `<h1 style="text-align:center;">HR Тизими - ${section}</h1>`;
+            content += `<p>Сана: ${new Date().toLocaleDateString()}</p>`;
+
+            if (section === 'employees') {
+                content += '<table border="1" style="width:100%;border-collapse:collapse;">';
+                content += '<tr><th>№</th><th>Ф.И.О.</th><th>Лавозим</th><th>Бўлим</th><th>Телефон</th></tr>';
+                data.employees.forEach((emp, i) => {
+                    content += `<tr><td>${i + 1}</td><td>${emp.lastName} ${emp.firstName}</td><td>${emp.position}</td><td>${emp.department}</td><td>${emp.phone}</td></tr>`;
+                });
+                content += '</table>';
+            }
+
+            content += '</body></html>';
+
+            const blob = new Blob([content], { type: 'application/msword' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = `${section}_${new Date().toISOString().slice(0, 10)}.doc`;
+            link.click();
+        }
+
+        // ========== HELPER FUNCTIONS ==========
+        function populateSelects() {
+            const deptSelects = document.querySelectorAll('#empDepartment, #posDepartment, #departmentFilter');
+            const empSelects = document.querySelectorAll('#vacEmployee, #slEmployee, #orderEmployee, #movEmployee, #hirEmployee, #orderEmployeeFilter');
+
+            deptSelects.forEach(select => {
+                const current = select.value;
+                select.innerHTML = '<option value="">Танланг...</option>';
+                data.departments.forEach(dept => {
+                    select.innerHTML += `<option value="${dept}">${dept}</option>`;
+                });
+                select.value = current;
+            });
+
+            empSelects.forEach(select => {
+                const current = select.value;
+                select.innerHTML = '<option value="">Танланг...</option>';
+                data.employees.filter(e => e.status !== 'dismissed').forEach(emp => {
+                    select.innerHTML += `<option value="${emp.id}">${emp.lastName} ${emp.firstName}</option>`;
+                });
+                select.value = current;
+            });
+        }
+
+        function searchEmployees() {
+            const query = document.getElementById('employeeSearch').value.toLowerCase();
+            const filtered = data.employees.filter(e =>
+                `${e.lastName} ${e.firstName} ${e.middleName}`.toLowerCase().includes(query) ||
+                e.position.toLowerCase().includes(query) ||
+                e.phone.includes(query)
+            );
+            renderEmployeesTable(filtered);
+        }
+
+        function filterEmployees() {
+            const dept = document.getElementById('departmentFilter').value;
+            const filtered = dept ? data.employees.filter(e => e.department === dept) : data.employees;
+            renderEmployeesTable(filtered);
+        }
+
+        function renderEmployeesTable(employees) {
+            const tbody = document.getElementById('employeesTableBody');
+            tbody.innerHTML = '';
+
+            employees.forEach((emp, i) => {
+                const statusBadge = {
+                    active: '<span class="badge badge-success">Фаол</span>',
+                    vacation: '<span class="badge badge-info">Таътилда</span>',
+                    sick: '<span class="badge badge-warning">Касал</span>',
+                    dismissed: '<span class="badge badge-danger">Бўшаган</span>'
+                };
+
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${i + 1}</td>
+                        <td>${emp.lastName} ${emp.firstName} ${emp.middleName || ''}</td>
+                        <td>${emp.position}</td>
+                        <td>${emp.department}</td>
+                        <td>${emp.phone}</td>
+                        <td>${emp.hireDate}</td>
+                        <td>${statusBadge[emp.status] || ''}</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="editEmployee('${emp.id}')">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteEmployee('${emp.id}')">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function renderOrdersTable(orders) {
+            const tbody = document.getElementById('ordersTableBody');
+            tbody.innerHTML = '';
+
+            const typeLabels = {
+                hiring: 'Ишга қабул',
+                dismissal: 'Ишдан бўшатиш',
+                vacation: 'Таътил',
+                transfer: 'Ўтказиш',
+                salary: 'Маош ўзгариши',
+                other: 'Бошқа'
+            };
+
+            orders.forEach(order => {
+                const emp = data.employees.find(e => e.id === order.employeeId);
+                tbody.innerHTML += `
+                    <tr>
+                        <td>${order.number}</td>
+                        <td>${order.date}</td>
+                        <td>${typeLabels[order.type] || order.type}</td>
+                        <td>${emp ? `${emp.lastName} ${emp.firstName}` : '-'}</td>
+                        <td>${order.content.substring(0, 50)}...</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" onclick="viewOrder('${order.id}')">👁️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteOrder('${order.id}')">🗑️</button>
+                        </td>
+                    </tr>
+                `;
+            });
+        }
+
+        function updateAllViews() {
+            // Update dashboard stats
+            document.getElementById('totalEmployees').textContent = data.employees.length;
+            document.getElementById('activeEmployees').textContent = data.employees.filter(e => e.status === 'active').length;
+            document.getElementById('onVacation').textContent = data.employees.filter(e => e.status === 'vacation').length;
+            document.getElementById('onSickLeave').textContent = data.employees.filter(e => e.status === 'sick').length;
+
+            // Update staffing stats
+            let totalPos = 0, filledPos = 0, totalFOT = 0;
+            data.positions.forEach(pos => {
+                totalPos += pos.count;
+                const filled = data.employees.filter(e => e.position === pos.name && e.department === pos.department && e.status === 'active').length;
+                filledPos += Math.min(filled, pos.count);
+                totalFOT += pos.salary * pos.count;
+            });
+            document.getElementById('totalPositions').textContent = totalPos;
+            document.getElementById('filledPositions').textContent = filledPos;
+            document.getElementById('vacantPositions').textContent = totalPos - filledPos;
+            document.getElementById('totalFOT').textContent = totalFOT.toLocaleString();
+
+            // Render tables
+            renderEmployeesTable(data.employees);
+            renderOrdersTable(data.orders);
+
+            // Vacations table
+            const vacTbody = document.getElementById('vacationsTableBody');
+            if (vacTbody) {
+                vacTbody.innerHTML = '';
+                data.vacations.forEach((v, i) => {
+                    const emp = data.employees.find(e => e.id === v.employeeId);
+                    const typeLabels = { annual: 'Асосий', additional: 'Қўшимча', unpaid: 'Ҳақсиз', study: 'Ўқиш', maternity: 'Она' };
+                    vacTbody.innerHTML += `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${emp ? `${emp.lastName} ${emp.firstName}` : '-'}</td>
+                            <td>${typeLabels[v.type] || v.type}</td>
+                            <td>${v.startDate}</td>
+                            <td>${v.endDate}</td>
+                            <td>${v.days}</td>
+                            <td>${v.orderNumber || '-'}</td>
+                            <td><span class="badge badge-success">Тасдиқланган</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deleteVacation('${v.id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Sick leave table
+            const slTbody = document.getElementById('sickLeaveTableBody');
+            if (slTbody) {
+                slTbody.innerHTML = '';
+                data.sickLeaves.forEach((sl, i) => {
+                    const emp = data.employees.find(e => e.id === sl.employeeId);
+                    slTbody.innerHTML += `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${emp ? `${emp.lastName} ${emp.firstName}` : '-'}</td>
+                            <td>${sl.startDate}</td>
+                            <td>${sl.endDate}</td>
+                            <td>${sl.days}</td>
+                            <td>${sl.type === 'paid' ? 'Тўловли' : 'Тўловсиз'}</td>
+                            <td><span class="badge badge-warning">Фаол</span></td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deleteSickLeave('${sl.id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Movements table
+            const movTbody = document.getElementById('movementsTableBody');
+            if (movTbody) {
+                movTbody.innerHTML = '';
+                const typeLabels = { position: 'Лавозим', department: 'Бўлим', salary_up: 'Маош ⬆', salary_down: 'Маош ⬇', temporary: 'Вақтинча' };
+                data.movements.forEach((m, i) => {
+                    const emp = data.employees.find(e => e.id === m.employeeId);
+                    movTbody.innerHTML += `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${emp ? `${emp.lastName} ${emp.firstName}` : '-'}</td>
+                            <td>${typeLabels[m.type] || m.type}</td>
+                            <td>${m.oldValue}</td>
+                            <td>${m.newValue}</td>
+                            <td>${m.date}</td>
+                            <td>${m.orderNumber || '-'}</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deleteMovement('${m.id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Staffing table
+            const staffTbody = document.getElementById('staffingTableBody');
+            if (staffTbody) {
+                staffTbody.innerHTML = '';
+                data.positions.forEach((pos, i) => {
+                    const filled = data.employees.filter(e => e.position === pos.name && e.department === pos.department && e.status === 'active').length;
+                    const vacant = pos.count - filled;
+                    staffTbody.innerHTML += `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${pos.department}</td>
+                            <td>${pos.name}</td>
+                            <td>${pos.count}</td>
+                            <td>${filled}</td>
+                            <td>${vacant > 0 ? `<span class="badge badge-warning">${vacant}</span>` : '-'}</td>
+                            <td>${pos.salary.toLocaleString()} сўм</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deletePosition('${pos.id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Hiring table
+            const hirTbody = document.getElementById('hiringTableBody');
+            if (hirTbody) {
+                hirTbody.innerHTML = '';
+                const workTypeLabels = { permanent: 'Доимий', temporary: 'Вақтинча', contract: 'Контракт' };
+                data.hirings.forEach((h, i) => {
+                    const emp = data.employees.find(e => e.id === h.employeeId);
+                    hirTbody.innerHTML += `
+                        <tr>
+                            <td>${i + 1}</td>
+                            <td>${emp ? `${emp.lastName} ${emp.firstName}` : '-'}</td>
+                            <td>${emp ? emp.position : '-'}</td>
+                            <td>${workTypeLabels[h.workType] || h.workType}</td>
+                            <td>${h.rate}</td>
+                            <td>${h.probation} кун</td>
+                            <td>${h.date}</td>
+                            <td>${h.orderNumber}</td>
+                            <td>
+                                <button class="btn btn-sm btn-danger" onclick="deleteHiring('${h.id}')">🗑️</button>
+                            </td>
+                        </tr>
+                    `;
+                });
+            }
+
+            // Departments list
+            const deptList = document.getElementById('departmentsList');
+            if (deptList) {
+                deptList.innerHTML = '';
+                data.departments.forEach(dept => {
+                    deptList.innerHTML += `
+                        <span style="display:inline-block;background:#e3f2fd;padding:8px 15px;margin:5px;border-radius:20px;">
+                            ${dept}
+                            <span style="cursor:pointer;margin-left:10px;color:#d32f2f;" onclick="deleteDepartment('${dept}')">&times;</span>
+                        </span>
+                    `;
+                });
+            }
+
+            // Load reminders
+            loadReminders();
+
+            // Populate selects
+            populateSelects();
+        }
+
+        // Delete functions
+        function deleteVacation(id) { requireSecurity(() => { data.vacations = data.vacations.filter(v => v.id !== id); saveData(); updateAllViews(); }); }
+        function deleteSickLeave(id) { requireSecurity(() => { data.sickLeaves = data.sickLeaves.filter(s => s.id !== id); saveData(); updateAllViews(); }); }
+        function deleteOrder(id) { requireSecurity(() => { data.orders = data.orders.filter(o => o.id !== id); saveData(); updateAllViews(); }); }
+        function deleteMovement(id) { requireSecurity(() => { data.movements = data.movements.filter(m => m.id !== id); saveData(); updateAllViews(); }); }
+        function deletePosition(id) { requireSecurity(() => { data.positions = data.positions.filter(p => p.id !== id); saveData(); updateAllViews(); }); }
+        function deleteHiring(id) { requireSecurity(() => { data.hirings = data.hirings.filter(h => h.id !== id); saveData(); updateAllViews(); }); }
+
+        function addDepartment() {
+            const name = document.getElementById('newDepartment').value.trim();
+            if (name && !data.departments.includes(name)) {
+                data.departments.push(name);
+                saveData();
+                updateAllViews();
+                document.getElementById('newDepartment').value = '';
+            }
+        }
+
+        function deleteDepartment(name) {
+            requireSecurity(() => {
+                if (confirm(`"${name}" бўлимини ўчирмоқчимисиз?`)) {
+                    data.departments = data.departments.filter(d => d !== name);
+                    saveData();
+                    updateAllViews();
+                }
+            });
+        }
+
+        function showDocTab(tab) {
+            document.querySelectorAll('#documents .tab').forEach(t => t.classList.remove('active'));
+            event.target.classList.add('active');
+            // Show/hide relevant content
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            loadData();
+            document.getElementById('securityCode').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') checkSecurityCode();
+            });
+        });
+    </script>
+</body>
+</html>
