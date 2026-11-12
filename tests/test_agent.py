@@ -5,7 +5,7 @@ from types import SimpleNamespace as NS
 import httpx2
 import pytest
 
-from app.agent import FALLBACK_BETA, Agent, Suhbat, SuhbatOmbori, build_system, history_content
+from app.agent import FALLBACK_BETA, MAX_PAUSES, Agent, Suhbat, SuhbatOmbori, build_system, history_content, rasm_hisobi
 from app.bilim import Bilim
 from app.config import load_settings
 
@@ -34,7 +34,7 @@ def test_build_system_strips_frontmatter(bilim_dir):
     import datetime as dt
     s = build_system(Bilim(bilim_dir), dt.date(2026, 10, 22))
     assert "name: test-skill" not in s
-    assert "Bugungi sana: 2026-10-22" in s
+    assert "Suhbat boshlangan sana: 2026-10-22" in s
     assert "# Davlat xaridlari agenti (test)" in s
     assert "kod_qidir" in s
 
@@ -46,7 +46,8 @@ def test_simple_turn_request_shape(fake_api, bilim_dir):
     events = run(collect(agent.javob(s, user("Salom"))))
 
     types = [e["t"] for e in events]
-    assert "fikr" in types and types[-1] == "tugadi"
+    assert types[0] == "qadam" and types.count("qadam") == 1
+    assert "fikr_blok" in types and "fikr" in types and types[-1] == "tugadi"
     assert "".join(e["v"] for e in events if e["t"] == "matn") == "Salom, dunyo!"
     assert events[-1]["sabab"] == "end_turn"
     assert events[-1]["usage"] == {"kirish": 100, "kesh_oqildi": 50, "kesh_yozildi": 10, "chiqish": 20}
@@ -123,12 +124,13 @@ def test_refusal_rolls_back(fake_api, bilim_dir):
     s = Suhbat(id="s")
     run(collect(agent.javob(s, user("birinchi"))))
     events = run(collect(agent.javob(s, user("ikkinchi"))))
-    assert events[-1]["t"] == "xato" and "rad etildi" in events[-1]["v"]
+    assert [e["t"] for e in events[-2:]] == ["bekor", "xato"] and "rad etildi" in events[-1]["v"]
     assert len(s.messages) == 2  # rad etilgan navbat tarixga kirmadi
 
 
 @pytest.mark.parametrize("status,needle", [(500, "vaqtincha"), (401, "API kaliti"), (429, "chegarasiga"),
-                                           (400, "API xatosi (400)"), (404, "Model topilmadi")])
+                                           (400, "API xatosi (400)"), (404, "Model topilmadi"),
+                                           (413, "Yangi suhbat boshlang")])
 def test_api_errors_roll_back(fake_api, bilim_dir, status, needle):
     fake_api.add(httpx2.Response(status, json={"type": "error", "error": {"type": "x", "message": "bad"}}))
     agent = make_agent(fake_api, bilim_dir)
@@ -162,11 +164,33 @@ def test_max_steps(fake_api, bilim_dir):
     for i in range(2):
         fake_api.add(message([{"type": "tool_use", "id": f"t{i}", "name": "bilim_royxati", "input": {}}],
                              stop_reason="tool_use"))
+    fake_api.add(message([{"type": "text", "text": "davomi"}]))
     agent = make_agent(fake_api, bilim_dir, max_steps=2)
     s = Suhbat(id="s")
     events = run(collect(agent.javob(s, user("x"))))
-    assert events[-1] == {"t": "tugadi", "sabab": "qadam_chegarasi", "usage": events[-1]["usage"]}
+    assert events[-1]["t"] == "tugadi" and events[-1]["sabab"] == "qadam_chegarasi"
+    assert len(fake_api.requests) == 2
     assert s.messages[-1]["role"] == "user" and s.messages[-1]["content"][0]["type"] == "tool_result"
+    # "davom et" — tool_result dan keyin yana bir user xabari; API ularni bitta navbatga birlashtiradi
+    events = run(collect(agent.javob(s, user("davom et"))))
+    assert events[-1]["sabab"] == "end_turn"
+    assert [m["role"] for m in fake_api.requests[2]["messages"]] == ["user", "assistant", "user", "assistant", "user", "user"]
+
+
+def test_pause_turn_does_not_count_as_step_and_is_bounded(fake_api, bilim_dir):
+    # qadam chegarasi 1 bo'lsa ham to'xtatilgan (pause_turn) javob davom ettiriladi
+    fake_api.add(message([{"type": "text", "text": "Qidiryapman"}], stop_reason="pause_turn"))
+    fake_api.add(message([{"type": "text", "text": "Tayyor"}]))
+    agent = make_agent(fake_api, bilim_dir, max_steps=1)
+    s = Suhbat(id="s")
+    events = run(collect(agent.javob(s, user("x"))))
+    assert events[-1]["t"] == "tugadi" and events[-1]["sabab"] == "end_turn"
+    # cheksiz pause_turn — xato va tarix tiklanadi (tarixda yarim qolgan server_tool_use qolmaydi)
+    for _ in range(MAX_PAUSES + 1):
+        fake_api.add(message([{"type": "text", "text": "…"}], stop_reason="pause_turn"))
+    s2 = Suhbat(id="s2")
+    events = run(collect(agent.javob(s2, user("x"))))
+    assert events[-1]["t"] == "xato" and s2.messages == []
 
 
 def test_max_tokens_with_tool_use_rolls_back(fake_api, bilim_dir):
@@ -268,16 +292,145 @@ def test_fallback_block_in_stream(fake_api, bilim_dir):
     assert [b.type for b in s.messages[1]["content"]] == ["text"]
 
 
-def test_ombor_eviction_skips_locked():
+def test_tool_use_before_mid_stream_fallback_is_not_executed(fake_api, bilim_dir):
+    """Zaxira model ulanishidan oldingi tool_use bajarilmaydi va tarixga tushmaydi."""
+    fb = {"type": "fallback", "from": {"model": "claude-opus-5-5"}, "to": {"model": "claude-opus-5"},
+          "trigger": {"type": "refusal", "category": "cyber"}}
+    # 1) zaxira model matn bilan yakunladi
+    fake_api.add(message([
+        {"type": "thinking", "thinking": "..."},
+        {"type": "tool_use", "id": "toolu_rad", "name": "bilim_royxati", "input": {}},
+        fb,
+        {"type": "text", "text": "Zaxira javobi"},
+    ]))
+    agent = make_agent(fake_api, bilim_dir)
+    s = Suhbat(id="s")
+    events = run(collect(agent.javob(s, user("x"))))
+    assert events[-1]["t"] == "tugadi" and not any(e["t"] == "vosita" for e in events)
+    assert len(fake_api.requests) == 1
+    assert [b.type for b in s.messages[1]["content"]] == ["text"]
+
+    # 2) zaxira model o'zi ham vosita chaqirdi — faqat uning chaqiruvi bajariladi
+    fake_api.add(message([
+        {"type": "tool_use", "id": "toolu_rad", "name": "bilim_royxati", "input": {}},
+        fb,
+        {"type": "tool_use", "id": "toolu_zaxira", "name": "bilim_royxati", "input": {}},
+    ], stop_reason="tool_use"))
+    fake_api.add(message([{"type": "text", "text": "ok"}]))
+    s2 = Suhbat(id="s2")
+    events = run(collect(agent.javob(s2, user("x"))))
+    assert [e["id"] for e in events if e["t"] == "vosita"] == ["toolu_zaxira"]
+    sent = fake_api.requests[-1]["messages"]
+    assert [b["id"] for b in sent[1]["content"] if b["type"] == "tool_use"] == ["toolu_zaxira"]
+    assert [b["tool_use_id"] for b in sent[2]["content"]] == ["toolu_zaxira"]
+
+
+def test_system_prompt_is_stable_across_turns_and_days(fake_api, bilim_dir, monkeypatch):
+    import datetime as dt
+    import app.agent as agent_mod
+
+    class Kun(dt.date):
+        bugun = dt.date(2026, 11, 12)
+
+        @classmethod
+        def today(cls):
+            return cls.bugun
+
+    monkeypatch.setattr(agent_mod.dt, "date", Kun)
+    for _ in range(3):
+        fake_api.add(message([{"type": "thinking", "thinking": "o'y"}, {"type": "text", "text": "ok"}]))
+    agent = make_agent(fake_api, bilim_dir)
+    s = Suhbat(id="s")
+    run(collect(agent.javob(s, user("bir"))))
+    # bilim bazasi yangilandi va sana o'zgardi — davom etayotgan suhbatning tizim matni o'zgarmasligi kerak
+    (bilim_dir / "SKILL.md").write_text("# Butunlay yangi matn", encoding="utf-8")
+    run(collect(agent.javob(s, user("ikki"))))
+    Kun.bugun = dt.date(2026, 11, 13)
+    run(collect(agent.javob(s, user("uch"))))
+    systems = [r["system"][0]["text"] for r in fake_api.requests]
+    assert systems[0] == systems[1] == systems[2]
+    assert "Suhbat boshlangan sana: 2026-11-12" in systems[0]
+    # yangi sana xabar ichida aytiladi; oldingi xabarlar (thinking bloklari bilan) o'zgarmagan
+    last_user = fake_api.requests[2]["messages"][-1]["content"]
+    assert last_user[0]["text"] == "[Tizim eslatmasi: bugungi sana — 2026-11-13.]" and last_user[1]["text"] == "uch"
+    assert fake_api.requests[2]["messages"][:3] == fake_api.requests[1]["messages"][:3]
+    assert fake_api.requests[1]["messages"][2]["content"] == [{"type": "text", "text": "ikki"}]
+    # yangi suhbat yangi bilim bazasini oladi
+    fake_api.add(message([{"type": "text", "text": "ok"}]))
+    run(collect(agent.javob(Suhbat(id="yangi"), user("x"))))
+    assert "Butunlay yangi matn" in fake_api.requests[3]["system"][0]["text"]
+
+
+def test_usage_counts_declined_attempt_when_fallback_served(fake_api, bilim_dir):
+    usage = {"input_tokens": 100, "output_tokens": 0, "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0}
+    events = message([{"type": "text", "text": "ok"}], usage=usage)
+    events[-2]["usage"] = {
+        "output_tokens": 30,
+        "iterations": [
+            {"type": "message", "input_tokens": 1000, "output_tokens": 200,
+             "cache_read_input_tokens": 5, "cache_creation_input_tokens": 7},
+            {"type": "fallback_message", "model": "claude-opus-5", "input_tokens": 100, "output_tokens": 30,
+             "cache_read_input_tokens": 0, "cache_creation_input_tokens": 0},
+        ],
+    }
+    fake_api.add(events)
+    agent = make_agent(fake_api, bilim_dir)
+    out = run(collect(agent.javob(Suhbat(id="s"), user("x"))))
+    assert out[-1]["usage"] == {"kirish": 1100, "kesh_oqildi": 5, "kesh_yozildi": 7, "chiqish": 230}
+
+
+def test_rasm_hisobi_and_session_counters(fake_api, bilim_dir):
+    img = {"type": "image", "source": {"type": "base64", "media_type": "image/png", "data": "A" * 1000}}
+    assert rasm_hisobi([{"role": "user", "content": [img, img, {"type": "text", "text": "x"}]},
+                        {"role": "assistant", "content": "matn"}]) == (2, 2000)
+    fake_api.add(message([{"type": "text", "text": "ok"}]))
+    fake_api.add(httpx2.Response(500, json={"type": "error", "error": {"type": "api_error", "message": "x"}}))
+    agent = make_agent(fake_api, bilim_dir)
+    s = Suhbat(id="s")
+    run(collect(agent.javob(s, [img, {"type": "text", "text": "x"}])))
+    assert (s.rasm_soni, s.rasm_hajmi) == (1, 1000)
+    run(collect(agent.javob(s, [img, {"type": "text", "text": "y"}])))  # xato — tiklanadi
+    assert (s.rasm_soni, s.rasm_hajmi) == (1, 1000)
+
+
+def test_ombor_basic():
+    om = SuhbatOmbori(10)
+    a = om.yarat()
+    assert len(a.id) == 32 and om.topish(a.id) is a
+    assert om.topish("yoq") is None and om.topish(None) is None and om.topish("") is None
+    om.ochir(a.id)
+    assert om.topish(a.id) is None and len(om) == 0
+
+
+def test_ombor_evicts_oldest_but_never_locked_or_new():
     async def go():
         om = SuhbatOmbori(2)
-        a = om.ol("a")
+        a, b = om.yarat(), om.yarat()
         await a.lock.acquire()
-        om.ol("b")
-        om.ol("c")
-        assert om.topish("a") is a  # band suhbat chiqarib yuborilmadi
-        assert om.topish("b") is None
-        assert om.ol("a") is a
-        assert len(om.ol(None).id) == 32
-        assert om.ol("x" * 65).id != "x" * 65
+        c = om.yarat()
+        assert om.topish(a.id) is a  # band suhbat chiqarib yuborilmadi
+        assert om.topish(b.id) is None and om.topish(c.id) is c
+        # hammasi band bo'lsa, yangi yaratilgan suhbat baribir saqlanadi (chegaradan vaqtincha oshadi)
+        await c.lock.acquire()
+        d = om.yarat()
+        assert om.topish(d.id) is d and len(om) == 3
     run(go())
+
+
+def test_ombor_lru_order_follows_use():
+    om = SuhbatOmbori(2)
+    a, b = om.yarat(), om.yarat()
+    om.topish(a.id)  # a yaqinda ishlatildi
+    om.yarat()
+    assert om.topish(a.id) is a and om.topish(b.id) is None
+
+
+def test_ombor_ttl_and_image_budget():
+    om = SuhbatOmbori(100, ttl=60, max_rasm_hajmi=1000)
+    eski, a, b = om.yarat(), om.yarat(), om.yarat()
+    eski.yangilangan -= 3600
+    a.rasm_hajmi = b.rasm_hajmi = 600
+    c = om.yarat()
+    assert om.topish(eski.id) is None  # muddati o'tgan
+    assert om.topish(a.id) is None  # rasm hajmi chegarasi: eng eskisi chiqarildi
+    assert om.topish(b.id) is b and om.topish(c.id) is c

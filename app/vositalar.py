@@ -12,6 +12,9 @@ from typing import Any, Callable
 from .bilim import Bilim, BilimError
 
 
+MAX_SOZLAR = 10  # bitta kod_qidir chaqiruvidagi qidiruv so'zlari
+
+
 class VositaXatosi(Exception):
     pass
 
@@ -57,12 +60,15 @@ def kod_qidir(bilim: Bilim, args: dict) -> str:
     kod = _require_str(args, "kod", optional=True)
     if not isinstance(sozlar, list) or not all(isinstance(s, str) for s in sozlar):
         raise VositaXatosi("'sozlar' matnlar ro'yxati bo'lishi kerak.")
-    sozlar = [s.strip() for s in sozlar if s.strip()][:10]
+    sozlar = [s.strip() for s in sozlar if s.strip()]
     if not sozlar and not kod:
         raise VositaXatosi("'sozlar' yoki 'kod' dan kamida bittasini bering.")
     n = _int(args, "n", 8, 1, 30)
     k = bilim.klassifikator
     out = [f"Klassifikator: {len(k)} pozitsiya ({k.manba}, holati {k.holat}). Format: kod | o'zbekcha | ruscha"]
+    if len(sozlar) > MAX_SOZLAR:
+        out.append(f"[{len(sozlar)} ta so'zdan faqat birinchi {MAX_SOZLAR} tasi qidirildi]")
+        sozlar = sozlar[:MAX_SOZLAR]
     if kod:
         rows = k.prefiks(kod)
         out.append(f"\n== kod {kod.strip()}* : {len(rows)} ta")

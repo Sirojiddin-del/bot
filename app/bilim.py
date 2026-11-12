@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import re
-from functools import cached_property
+import threading
 from pathlib import Path
 
 APOSTROPHES = "'`‘’ʻʼ´"
@@ -27,6 +27,12 @@ TEXT_SUFFIXES = {".md", ".txt", ".json", ".html"}
 BLOCKED_FILES = {"data/klassifikator.json"}
 SEARCH_DIRS = ("laws", "references", "templates", "profil")
 MAX_READ_CHARS = 60_000
+MAX_LINE_CHARS = 20_000
+# Klassifikator qidiruvi har so'z uchun butun bazani ko'rib chiqadi — so'rov hajmini cheklaymiz
+MAX_QUERY_CHARS = 100
+MAX_QUERY_TOKENS = 8
+UZ_VOWELS = ("a", "e", "i", "o", "u", "o'")
+NO_MATCH = float("-inf")
 
 
 def norm(text: str) -> str:
@@ -50,6 +56,11 @@ def words(text: str) -> list[str]:
     return [w for w in _SPLIT_RE.split(text) if w]
 
 
+def _yashirin(rel: Path) -> bool:
+    """Nuqta bilan boshlanadigan (xizmat) fayl va papkalar vositalarga ko'rinmaydi."""
+    return any(part.startswith(".") for part in rel.parts)
+
+
 class BilimError(Exception):
     """Foydalanuvchiga (modelga) ko'rsatiladigan xato."""
 
@@ -57,6 +68,9 @@ class BilimError(Exception):
 class Bilim:
     def __init__(self, root: Path):
         self.root = Path(root).resolve()
+        self._lines: dict[Path, tuple[int, int, list[str], list[str]]] = {}
+        self._klassifikator: Klassifikator | None = None
+        self._klassifikator_lock = threading.Lock()
 
     # ---------- umumiy ----------
     def mavjud(self) -> bool:
@@ -77,10 +91,24 @@ class Bilim:
     def _text_files(self) -> list[Path]:
         files = [
             p for p in self.root.rglob("*")
-            if p.is_file() and p.suffix in TEXT_SUFFIXES
+            if p.suffix in TEXT_SUFFIXES and p.is_file()
+            # ramziy havolalar (symlink) orqali bilim bazasidan tashqariga chiqilmasin
+            and not p.is_symlink() and p.resolve().is_relative_to(self.root)
             and p.relative_to(self.root).as_posix() not in BLOCKED_FILES
+            and not _yashirin(p.relative_to(self.root))
         ]
         return sorted(files, key=lambda p: p.relative_to(self.root).as_posix())
+
+    def _file_lines(self, path: Path) -> tuple[list[str], list[str]]:
+        """Fayl qatorlari va ularning qidiruv uchun me'yorlangan ko'rinishi (fayl o'zgarmaguncha keshda)."""
+        st = path.stat()
+        cached = self._lines.get(path)
+        if cached and cached[0] == st.st_mtime_ns and cached[1] == st.st_size:
+            return cached[2], cached[3]
+        lines = path.read_text(encoding="utf-8").splitlines()
+        normed = [to_latin(norm(line)) for line in lines]
+        self._lines[path] = (st.st_mtime_ns, st.st_size, lines, normed)
+        return lines, normed
 
     # ---------- ro'yxat ----------
     def royxat(self) -> str:
@@ -105,7 +133,7 @@ class Bilim:
         rel = target.relative_to(self.root).as_posix()
         if rel in BLOCKED_FILES:
             raise BilimError("Klassifikator bazasini o'qimang — kod_qidir vositasidan foydalaning.")
-        if not target.is_file():
+        if not target.is_file() or _yashirin(Path(rel)):
             raise BilimError(f"Fayl topilmadi: {rel}. bilim_royxati vositasi bilan yo'lni tekshiring.")
         if target.suffix not in TEXT_SUFFIXES:
             raise BilimError(f"Bu fayl turi o'qilmaydi: {target.suffix}")
@@ -117,7 +145,10 @@ class Bilim:
             raise BilimError(f"{rel} faylida {total} qator bor; boshlanish {start} juda katta.")
         out, chars, last = [], 0, start - 1
         for i in range(start - 1, min(total, start - 1 + count)):
-            line = f"{i + 1}\t{all_lines[i]}"
+            text = all_lines[i]
+            if len(text) > MAX_LINE_CHARS:
+                text = f"{text[:MAX_LINE_CHARS]}… [qator qisqartirildi: jami {len(text)} belgi]"
+            line = f"{i + 1}\t{text}"
             if chars + len(line) > MAX_READ_CHARS and out:
                 break
             out.append(line)
@@ -134,6 +165,8 @@ class Bilim:
         query = to_latin(norm(soz))
         if len(query) < 2:
             raise BilimError("Qidiruv so'zi kamida 2 harf bo'lsin.")
+        if len(query) > 200:
+            raise BilimError("Qidiruv iborasi juda uzun — 200 belgidan qisqa so'z yoki ibora bering.")
         if papka and papka not in SEARCH_DIRS:
             raise BilimError(f"papka quyidagilardan biri bo'lsin: {', '.join(SEARCH_DIRS)}")
         dirs = [papka] if papka else list(SEARCH_DIRS)
@@ -148,11 +181,11 @@ class Bilim:
                 if not p.is_file():
                     continue
                 rel = p.relative_to(self.root).as_posix()
-                for i, line in enumerate(p.read_text(encoding="utf-8").splitlines(), 1):
-                    hay = to_latin(norm(line))
+                lines, normed = self._file_lines(p)
+                for i, hay in enumerate(normed):
                     ok = all(w in hay for w in query_words) if match_all_words else query in hay
                     if ok:
-                        hits.append((rel, i, line.strip()))
+                        hits.append((rel, i + 1, lines[i].strip()))
             return hits
 
         hits = scan(match_all_words=False)
@@ -178,12 +211,49 @@ class Bilim:
         return "\n".join(lines)
 
     # ---------- klassifikator ----------
-    @cached_property
+    @property
     def klassifikator(self) -> "Klassifikator":
-        path = self.root / "data" / "klassifikator.json"
-        if not path.is_file():
-            raise BilimError("Klassifikator bazasi (data/klassifikator.json) topilmadi.")
-        return Klassifikator(path)
+        with self._klassifikator_lock:  # bir vaqtda ikki oqim yuklamasin (3 MB JSON)
+            if self._klassifikator is None:
+                path = self.root / "data" / "klassifikator.json"
+                if not path.is_file():
+                    raise BilimError("Klassifikator bazasi (data/klassifikator.json) topilmadi.")
+                self._klassifikator = Klassifikator(path)
+            return self._klassifikator
+
+
+class _Sorov:
+    """Bir tildagi me'yorlangan so'rov: so'zlar va ularning shakllari oldindan hisoblanadi."""
+
+    def __init__(self, text: str, uzbek: bool):
+        self.text = text
+        self.uzbek = uzbek
+        # har so'z uchun: (so'z, aniq shakllar, turlangan shakllar, old qo'shimcha sifatida qidiriladigan o'zaklar)
+        self.toks: list[tuple[str, frozenset[str], frozenset[str], tuple[str, ...]]] = []
+        for tok in [t for t in words(text) if len(t) >= 2][:MAX_QUERY_TOKENS]:
+            exact = {tok}
+            inflected: set[str] = set()
+            stems = {tok}
+            if uzbek:
+                # so'rovdagi egalik/ko'plik qo'shimchasini olib tashlaymiz: qog'ozi -> qog'oz, xizmatlari -> xizmat
+                for suffix in ("lari", "lar", "si", "i"):
+                    if tok.endswith(suffix) and len(tok) - len(suffix) >= 3:
+                        stems.add(tok[: -len(suffix)])
+                        break
+                for stem in list(stems):
+                    # undosh almashuvi: sochiq -> sochig'i, ko'ylak -> ko'ylagi
+                    if stem.endswith("q"):
+                        stems.add(stem[:-1] + "g'")
+                    if stem.endswith("k"):
+                        stems.add(stem[:-1] + "g")
+                for stem in stems:
+                    # egalik va ko'plik: sut -> suti, energiya -> energiyasi, xizmat -> xizmatlar(i)
+                    inflected.add(stem)
+                    inflected.add(stem + ("si" if stem.endswith(UZ_VOWELS) else "i"))
+                    inflected.update((stem + "lar", stem + "lari"))
+                inflected -= exact
+            prefixes = tuple(sorted(st for st in stems if st == tok or len(st) >= 4))
+            self.toks.append((tok, frozenset(exact), frozenset(inflected), prefixes))
 
 
 class Klassifikator:
@@ -206,68 +276,69 @@ class Klassifikator:
         return len(self.items)
 
     @staticmethod
-    def _forms(tok: str) -> list[str]:
-        # o'zbekcha undosh almashuvi: sochiq -> sochig'i, ko'ylak -> ko'ylagi
-        forms = [tok]
-        if tok.endswith("q"):
-            forms.append(tok[:-1] + "g'")
-        if tok.endswith("k"):
-            forms.append(tok[:-1] + "g")
-        return forms
-
-    def _token_score(self, tok: str, ws: list[str], text: str) -> float:
-        forms = self._forms(tok)
-        if any(w == f for w in ws for f in forms):
+    def _token_score(tok: str, exact: frozenset[str], inflected: frozenset[str], prefixes: tuple[str, ...],
+                     ws: list[str], text: str) -> float:
+        if any(w in exact for w in ws):
             return 1.3
-        if any(w.startswith(f) for w in ws for f in forms):
+        if inflected and any(w in inflected for w in ws):
+            return 1.25
+        if any(w.startswith(prefixes) for w in ws):
             return 1.1
-        if any(f in text for f in forms):
-            return 0.7
-        for cut in (1, 2):
-            if len(tok) - cut >= 4 and any(w.startswith(tok[:-cut]) for w in ws):
-                return 0.6
+        if len(tok) >= 4:  # qisqa so'zlar boshqa so'z ichida tasodifan uchraydi ("ai" — "benzocaine")
+            if any(pre in text for pre in prefixes):
+                return 0.7
+            for cut in (1, 2):
+                if len(tok) - cut >= 5 and any(w.startswith(tok[:-cut]) for w in ws):
+                    return 0.6
         return 0.0
 
-    def _score(self, query: str, ws: list[str], text: str, head: str) -> float:
-        toks = [t for t in words(query) if len(t) >= 2]
-        if not toks or not text:
-            return 0.0
-        scores = [self._token_score(t, ws, text) for t in toks]
+    def _score(self, q: _Sorov, ws: list[str], text: str, min_found: float) -> float:
+        """Moslik bali; mos kelmasa — NO_MATCH (ball manfiy ham bo'lishi mumkin)."""
+        if not q.toks or not ws:
+            return NO_MATCH
+        scores = [self._token_score(*t, ws, text) for t in q.toks]
         found = sum(1 for s in scores if s > 0)
-        if found == 0 or found / len(toks) < 0.5:
-            return 0.0
-        s = sum(scores) / len(toks) * 100
-        if query in text:
+        if found == 0 or found < min_found * len(scores):
+            return NO_MATCH
+        s = sum(scores) / len(scores) * 100
+        s -= 35 * (len(scores) - found)  # hamma so'z topilgan pozitsiyalar yuqorida tursin
+        # Bosh so'z pozitsiyaning o'zi shu narsa ekanini bildiradi. O'zbekchada u oxirida keladi
+        # ("ichimlik suti" — sut; "sut zardobi" — zardob), ruschada boshida ("молоко питьевое").
+        head = ws[-1] if q.uzbek else ws[0]
+        if any(head in exact for _, exact, _, _ in q.toks):
+            s += 25
+        elif any(head in inflected for _, _, inflected, _ in q.toks):
+            s += 20
+        if len(scores) > 1 and q.text in text:  # ibora butunligicha uchraydi
             s += 40
-            if text.startswith(query):
+            if text.endswith(q.text) if q.uzbek else text.startswith(q.text):
                 s += 10
-        # Bosh so'z — pozitsiyaning o'zi shu narsa ekanini bildiradi
-        # (o'zbekchada oxirgi so'z: "maishiy konditsioner"; ruschada birinchi: "кондиционер бытовой")
-        if head and any(head == f for t in toks for f in self._forms(t)):
-            s += 12
-        s -= 4 * max(0, len(ws) - len(toks))
+        s -= 4 * max(0, len(ws) - len(scores))
         s -= len(text) / 40
         return s
 
-    def qidir(self, soz: str, n: int = 8) -> list[tuple[float, tuple[str, str, str]]]:
-        q = norm(soz)
-        cyr = has_cyrillic(q)
-        q_lat = to_latin(q)
+    def _scan(self, text: str, min_found: float) -> list[tuple[float, tuple[str, str, str]]]:
         results = []
-        for item, (uz_n, uz_w, ru_n, ru_w, ru_lat, ru_lat_w) in zip(self.items, self._fields):
-            uz_head = uz_w[-1] if uz_w else ""
-            if cyr:
-                best = max(
-                    self._score(q, ru_w, ru_n, ru_w[0] if ru_w else ""),
-                    self._score(q_lat, uz_w, uz_n, uz_head),
-                )
-            else:
-                best = max(
-                    self._score(q, uz_w, uz_n, uz_head),
-                    self._score(q, ru_lat_w, ru_lat, ru_lat_w[0] if ru_lat_w else "") - 5,
-                )
-            if best > 0:
-                results.append((best, item))
+        if has_cyrillic(text):
+            q_ru, q_uz = _Sorov(text, uzbek=False), _Sorov(to_latin(text), uzbek=True)
+            for item, (uz_n, uz_w, ru_n, ru_w, _, _) in zip(self.items, self._fields):
+                best = max(self._score(q_ru, ru_w, ru_n, min_found), self._score(q_uz, uz_w, uz_n, min_found))
+                if best > NO_MATCH:
+                    results.append((best, item))
+        else:
+            q_uz, q_ru = _Sorov(text, uzbek=True), _Sorov(text, uzbek=False)
+            for item, (uz_n, uz_w, _, _, ru_lat, ru_lat_w) in zip(self.items, self._fields):
+                # lotincha yozilgan ruscha so'z ("printer", "toner") ruscha nom bo'yicha ham topiladi
+                best = max(self._score(q_uz, uz_w, uz_n, min_found),
+                           self._score(q_ru, ru_lat_w, ru_lat, min_found) - 5)
+                if best > NO_MATCH:
+                    results.append((best, item))
+        return results
+
+    def qidir(self, soz: str, n: int = 8) -> list[tuple[float, tuple[str, str, str]]]:
+        text = norm(soz)[:MAX_QUERY_CHARS]
+        # avval so'zlarning kamida yarmi topilgan pozitsiyalar; hech narsa chiqmasa — istalgan bittasi
+        results = self._scan(text, 0.5) or self._scan(text, 0.0)
         results.sort(key=lambda r: -r[0])
         return results[: max(1, n)]
 

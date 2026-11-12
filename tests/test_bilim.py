@@ -72,18 +72,56 @@ def test_qidirish_folder_and_errors(bilim_dir):
         b.qidirish("a")
 
 
+def codes(k, query, n=3):
+    return [item[0] for _, item in k.qidir(query, n)]
+
+
 def test_klassifikator_search(bilim_dir):
     k = Bilim(bilim_dir).klassifikator
-    assert len(k) == 7 and k.holat == "2026-09-18"
-    top = [item[0] for _, item in k.qidir("suyuq sovun", 3)]
+    assert len(k) == 15 and k.holat == "2026-09-18"
+    top = codes(k, "suyuq sovun")
     assert top[0] == "20.41.31.130-00002"
     assert "20.11.11.140-00002" not in top[:2]
     # ruscha va o'zbekcha kirill so'rov
-    assert k.qidir("мыло жидкое", 1)[0][1][0].startswith("20.41.31.130")
-    # bosh so'z: "maishiy konditsioner" filtrdan yuqori
-    assert k.qidir("konditsioner", 2)[0][1][0] == "28.25.12.130-00001"
-    assert k.qidir("кондиционер", 1)[0][1][0] == "28.25.12.130-00001"
+    assert codes(k, "мыло жидкое", 1)[0].startswith("20.41.31.130")
+    assert codes(k, "суюқ совун", 1) == ["20.41.31.130-00002"]
     assert k.qidir("zzzzzz") == []
+
+
+def test_klassifikator_head_noun_beats_modifier(bilim_dir):
+    k = Bilim(bilim_dir).klassifikator
+    # o'zbekchada bosh so'z oxirida: "maishiy konditsioner" — konditsioner, "konditsioner filtri" — filtr
+    assert codes(k, "konditsioner", 2)[0] == "28.25.12.130-00001"
+    assert codes(k, "кондиционер", 1) == ["28.25.12.130-00001"]
+    # "non idish" (non uchun idish) haqiqiy nondan pastda
+    assert codes(k, "non", 2) == ["10.71.11.110-00001", "23.41.12.110-00002"]
+
+
+def test_klassifikator_uzbek_suffixes(bilim_dir):
+    k = Bilim(bilim_dir).klassifikator
+    # egalik qo'shimchasi: sut -> "ichimlik suti" zardobdan yuqori
+    top = codes(k, "sut")
+    assert top[0] == "10.51.51.000-00001" and top[1] == "10.51.11.000-00001"
+    assert top.index("10.51.11.000-00001") < top.index("10.51.55.111-00001")
+    # so'rovning o'zi qo'shimchali: "ofis qog'ozi" -> "... oq qog'oz"; sochiq -> sochig'i almashuvi buzilmagan
+    assert codes(k, "ofis qog'ozi", 1) == ["17.12.14.129-00002"]
+    assert codes(k, "sochiq", 1) == ["17.22.11.130-00003"]
+
+
+def test_klassifikator_short_tokens_and_partial_fallback(bilim_dir):
+    k = Bilim(bilim_dir).klassifikator
+    # "ai" va "92" hech qayerda so'z emas ("benzocAIne" ichidagi "ai" hisobga olinmaydi):
+    # to'liq mos pozitsiya yo'q, shuning uchun qisman mos kelgan benzin chiqadi
+    assert codes(k, "benzin AI-92") == ["19.20.21.100-00001"]
+
+
+def test_klassifikator_query_is_capped(bilim_dir):
+    from app.bilim import MAX_QUERY_CHARS, MAX_QUERY_TOKENS, _Sorov
+    k = Bilim(bilim_dir).klassifikator
+    long_query = "suyuq sovun " + " ".join(f"soz{i}" for i in range(2000))
+    # faqat birinchi 100 belgi va 8 ta so'z hisobga olinadi
+    assert k.qidir(long_query) == k.qidir(long_query[:MAX_QUERY_CHARS])
+    assert len(_Sorov(long_query, uzbek=True).toks) == MAX_QUERY_TOKENS
 
 
 def test_klassifikator_prefix(bilim_dir):
@@ -95,3 +133,40 @@ def test_klassifikator_missing(tmp_path):
     (tmp_path / "SKILL.md").write_text("x")
     with pytest.raises(BilimError):
         Bilim(tmp_path).klassifikator
+
+
+def test_symlinks_cannot_leave_knowledge_base(bilim_dir, tmp_path):
+    secret = tmp_path / "tashqarida.txt"
+    secret.write_text("MAXFIY_KALIT=sk-123", encoding="utf-8")
+    (bilim_dir / "references" / "havola.md").symlink_to(secret)
+    outside_dir = tmp_path / "tashqi_papka"
+    outside_dir.mkdir()
+    (outside_dir / "ichki.md").write_text("MAXFIY_KALIT ikkinchi", encoding="utf-8")
+    (bilim_dir / "templates" / "papka").symlink_to(outside_dir, target_is_directory=True)
+    b = Bilim(bilim_dir)
+    assert "havola.md" not in b.royxat() and "ichki.md" not in b.royxat()
+    assert "topilmadi" in b.qidirish("MAXFIY_KALIT")
+    for path in ("references/havola.md", "templates/papka/ichki.md"):
+        with pytest.raises(BilimError):
+            b.oqish(path)
+
+
+def test_search_cache_follows_file_changes(bilim_dir):
+    import os
+    b = Bilim(bilim_dir)
+    assert "topilmadi" in b.qidirish("yangiqoida")
+    f = bilim_dir / "references" / "usullar.md"
+    f.write_text(f.read_text(encoding="utf-8") + "\nYangiqoida: tender.\n", encoding="utf-8")
+    os.utime(f, ns=(f.stat().st_atime_ns, f.stat().st_mtime_ns + 5_000_000_000))
+    assert "references/usullar.md:7: Yangiqoida: tender." in b.qidirish("yangiqoida")
+
+
+def test_oqish_truncates_huge_line(bilim_dir):
+    (bilim_dir / "references" / "uzun.json").write_text("{" + "x" * 200_000 + "}", encoding="utf-8")
+    out = Bilim(bilim_dir).oqish("references/uzun.json")
+    assert len(out) < 25_000 and "qator qisqartirildi: jami 200002 belgi" in out
+
+
+def test_qidirish_rejects_very_long_query(bilim_dir):
+    with pytest.raises(BilimError, match="juda uzun"):
+        Bilim(bilim_dir).qidirish("narx " * 100)

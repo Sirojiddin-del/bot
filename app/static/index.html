@@ -5,79 +5,10 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Davlat xaridlari agenti</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6feb'/%3E%3Cpath d='M9 16.5l4.5 4.5L23 11.5' stroke='white' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/dompurify@3.1.6/dist/purify.min.js"></script>
-<style>
-  :root {
-    --bg: #f6f7f9; --panel: #ffffff; --text: #1d2330; --muted: #667085; --border: #e3e6eb;
-    --accent: #1f6feb; --accent-text: #ffffff; --user: #e8f0fe; --chip: #f1f3f6; --danger: #c4320a;
-    --code: #f4f5f7; --shadow: 0 1px 2px rgba(16,24,40,.06);
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --bg: #0f1218; --panel: #171b23; --text: #e6e9ef; --muted: #9aa3b2; --border: #2a303b;
-      --accent: #4c8dff; --accent-text: #0b0e13; --user: #1e2a40; --chip: #212732; --danger: #ff7a59;
-      --code: #1d222c; --shadow: none;
-    }
-  }
-  * { box-sizing: border-box; }
-  html, body { height: 100%; margin: 0; }
-  body { background: var(--bg); color: var(--text); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; display: flex; flex-direction: column; }
-  header { display: flex; align-items: center; gap: 12px; padding: 10px 16px; background: var(--panel); border-bottom: 1px solid var(--border); }
-  header h1 { font-size: 16px; margin: 0; font-weight: 650; }
-  header .meta { color: var(--muted); font-size: 12.5px; }
-  header .spacer { flex: 1; }
-  button { font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--border); background: var(--panel); color: var(--text); padding: 6px 12px; }
-  button:hover { border-color: var(--accent); }
-  button.primary { background: var(--accent); color: var(--accent-text); border-color: var(--accent); }
-  button:disabled { opacity: .5; cursor: default; }
-  #banner { display: none; margin: 12px auto 0; max-width: 860px; width: calc(100% - 32px); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--danger); color: var(--danger); background: var(--panel); font-size: 14px; }
-  main { flex: 1; overflow-y: auto; }
-  #log { max-width: 860px; margin: 0 auto; padding: 16px 16px 24px; }
-  .msg { margin: 14px 0; }
-  .msg.user { display: flex; justify-content: flex-end; }
-  .msg.user .bubble { background: var(--user); border-radius: 14px 14px 4px 14px; padding: 10px 14px; max-width: 85%; white-space: pre-wrap; overflow-wrap: anywhere; }
-  .msg.user img { max-width: 160px; max-height: 160px; border-radius: 8px; display: block; margin-bottom: 6px; }
-  .msg.bot .card { background: var(--panel); border: 1px solid var(--border); border-radius: 12px; padding: 12px 16px; box-shadow: var(--shadow); overflow-wrap: anywhere; }
-  .md > :first-child { margin-top: 0; } .md > :last-child { margin-bottom: 0; }
-  .md table { border-collapse: collapse; display: block; overflow-x: auto; margin: 10px 0; font-size: 14px; }
-  .md th, .md td { border: 1px solid var(--border); padding: 5px 9px; text-align: left; vertical-align: top; overflow-wrap: normal; min-width: 4em; }
-  .md th { background: var(--chip); }
-  .md pre { background: var(--code); padding: 30px 12px 10px; border-radius: 8px; overflow-x: auto; font-size: 13px; position: relative; overflow-wrap: normal; }
-  .md code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; }
-  .md :not(pre) > code { background: var(--code); padding: 1px 5px; border-radius: 4px; }
-  .md a { color: var(--accent); }
-  .copy { position: absolute; top: 6px; right: 6px; font-size: 12px; padding: 2px 8px; opacity: .8; }
-  .steps { display: flex; flex-direction: column; gap: 4px; margin: 2px 0 8px; }
-  .step { font-size: 13px; color: var(--muted); background: var(--chip); border-radius: 6px; padding: 4px 10px; }
-  .step.err { color: var(--danger); }
-  .step a { color: var(--accent); }
-  details.think { font-size: 13px; color: var(--muted); margin: 0 0 8px; }
-  details.think summary { cursor: pointer; }
-  details.think div { white-space: pre-wrap; padding: 6px 0 0 12px; border-left: 2px solid var(--border); margin-top: 4px; }
-  .note { font-size: 12.5px; color: var(--muted); margin-top: 8px; }
-  .error { color: var(--danger); margin-top: 8px; font-size: 14px; }
-  .typing::after { content: "▍"; animation: blink 1s steps(1) infinite; color: var(--muted); }
-  @keyframes blink { 50% { opacity: 0; } }
-  #empty { text-align: center; color: var(--muted); padding: 40px 0 10px; }
-  #empty h2 { color: var(--text); font-size: 20px; margin: 0 0 6px; }
-  .examples { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 18px; }
-  .examples button { font-size: 13.5px; border-radius: 999px; text-align: left; }
-  footer { background: var(--panel); border-top: 1px solid var(--border); padding: 10px 16px 14px; }
-  .composer { max-width: 860px; margin: 0 auto; }
-  #thumbs { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 8px; }
-  #thumbs:empty { display: none; }
-  .thumb { position: relative; }
-  .thumb img { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid var(--border); }
-  .thumb button { position: absolute; top: -6px; right: -6px; padding: 0 6px; border-radius: 999px; font-size: 12px; line-height: 18px; }
-  .row { display: flex; gap: 8px; align-items: flex-end; }
-  textarea { flex: 1; resize: none; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--border); border-radius: 10px; padding: 9px 12px; max-height: 200px; min-height: 42px; }
-  textarea:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
-  .hint { color: var(--muted); font-size: 12px; margin-top: 6px; }
-  dialog { border: 1px solid var(--border); border-radius: 12px; background: var(--panel); color: var(--text); padding: 20px; width: min(360px, calc(100% - 32px)); }
-  dialog input { width: 100%; font: inherit; padding: 8px 10px; margin: 10px 0; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text); }
-  @media (max-width: 600px) { header .meta { display: none; } .msg.user .bubble { max-width: 92%; } }
-</style>
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/vendor/marked.min.js" defer></script>
+<script src="/static/vendor/purify.min.js" defer></script>
+<script src="/static/app.js" defer></script>
 </head>
 <body>
 <header>
@@ -86,9 +17,9 @@
   <span class="spacer"></span>
   <button id="newBtn" type="button">Yangi suhbat</button>
 </header>
-<div id="banner" role="alert"></div>
+<div id="banner" role="alert" hidden></div>
 <main id="scroller">
-  <div id="log">
+  <div id="log" aria-live="polite">
     <div id="empty">
       <h2>Xarid bo'yicha nima qilamiz?</h2>
       <div>Talabnoma suratini yuboring yoki vazifani yozing: usul tanlash, narx o'rganish, klassifikator kodi, texnik topshiriq, qonun tahlili.</div>
@@ -105,267 +36,16 @@
       <textarea id="input" rows="1" placeholder="Xabar yozing…" aria-label="Xabar"></textarea>
       <button id="sendBtn" class="primary" type="button">Yuborish</button>
     </div>
-    <div class="hint">Enter — yuborish, Shift+Enter — yangi qator. Agent yordamchi vosita: yakuniy qaror, imzo va ERI — sizning javobgarligingizda.</div>
+    <div class="hint">Enter — yuborish, Shift+Enter — yangi qator; rasmni Ctrl+V bilan ham qo'yish mumkin. Agent — yordamchi vosita: yakuniy qaror, imzo va ERI sizning javobgarligingizda.</div>
   </div>
 </footer>
-<dialog id="pwDialog">
-  <form method="dialog" id="pwForm">
-    <strong>Kirish paroli</strong>
-    <input type="password" id="pwInput" autocomplete="current-password" required>
+<dialog id="pwDialog" aria-labelledby="pwTitle">
+  <form id="pwForm">
+    <strong id="pwTitle">Kirish paroli</strong>
+    <input type="password" id="pwInput" autocomplete="current-password" aria-labelledby="pwTitle" maxlength="256" required>
     <div class="error" id="pwError" hidden></div>
     <button class="primary" type="submit">Kirish</button>
   </form>
 </dialog>
-<script>
-(() => {
-  const $ = (id) => document.getElementById(id);
-  const log = $("log"), scroller = $("scroller"), input = $("input"), sendBtn = $("sendBtn");
-  const EXAMPLES = [
-    "Profilni sozlaymiz",
-    "Korporativ buyurtmachi: 180 mln so'mlik 20 ta noutbuk — qaysi xarid usuli?",
-    "Suyuq sovun uchun klassifikator kodini top",
-    "Narx tahlili: 3 manba — 185 000, 172 000 (40 dona), 178 000 (30 dona); miqdor 40",
-    "Ofis stuli uchun raqobatni cheklamaydigan texnik topshiriq tayyorla",
-    "To'g'ridan-to'g'ri shartnoma qachon mumkin? (O'RQ-684 71-modda)",
-  ];
-  const TOOL_LABELS = {
-    kod_qidir: (i) => "Klassifikator qidiruvi" + fmtList(i.sozlar) + (i.kod ? ` (kod ${i.kod}*)` : ""),
-    narx_tahlili: (i) => `Narx tahlili: ${(i.manbalar || []).length} ta manba, miqdor ${i.miqdor ?? "?"}`,
-    bilim_royxati: () => "Bilim bazasi fayllari ro'yxati",
-    bilim_oqish: (i) => `Fayl o'qilmoqda: ${i.yol || ""}${i.boshlanish > 1 ? ` (${i.boshlanish}-qatordan)` : ""}`,
-    bilim_qidirish: (i) => `Bilim bazasida qidiruv: "${i.soz || ""}"${i.papka ? ` (${i.papka})` : ""}`,
-  };
-  function fmtList(a) { return Array.isArray(a) && a.length ? ": " + a.map((s) => `"${s}"`).join(", ") : ""; }
-
-  let suhbatId = null, parol = "", busy = false, controller = null, images = [];
-  try { parol = sessionStorage.getItem("kirish_paroli") || ""; } catch (_) {}
-
-  // ---------- markdown ----------
-  const canMd = typeof marked !== "undefined" && typeof DOMPurify !== "undefined";
-  if (canMd) marked.setOptions({ gfm: true, breaks: false });
-  function renderMd(el, text) {
-    if (canMd) {
-      el.innerHTML = DOMPurify.sanitize(marked.parse(text));
-      el.querySelectorAll("a").forEach((a) => { a.target = "_blank"; a.rel = "noopener noreferrer"; });
-      el.querySelectorAll("pre").forEach((pre) => {
-        const code = pre.innerText;
-        const b = document.createElement("button");
-        b.className = "copy"; b.type = "button"; b.textContent = "Nusxa";
-        b.onclick = () => copyText(code, b);
-        pre.appendChild(b);
-      });
-    } else {
-      el.textContent = text;
-      el.style.whiteSpace = "pre-wrap";
-    }
-  }
-  function copyText(text, btn) {
-    navigator.clipboard?.writeText(text).then(() => { btn.textContent = "Nusxalandi"; setTimeout(() => (btn.textContent = "Nusxa"), 1500); });
-  }
-
-  // ---------- helpers ----------
-  const nearBottom = () => scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight < 120;
-  const scrollDown = (force) => { if (force || nearBottom()) scroller.scrollTop = scroller.scrollHeight; };
-  function el(tag, cls, text) { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
-  function showBanner(text) { const b = $("banner"); b.textContent = text; b.style.display = text ? "block" : "none"; }
-  function headers() { const h = { "Content-Type": "application/json" }; if (parol) h["X-Kirish-Paroli"] = parol; return h; }
-
-  // ---------- holat ----------
-  async function loadStatus() {
-    try {
-      const r = await fetch("/api/holat");
-      const s = await r.json();
-      $("meta").textContent = `${s.model}${s.veb_qidiruv ? " · veb-qidiruv yoqilgan" : ""}`;
-      if (!s.bilim) showBanner("Bilim bazasi yuklanmagan. Serverda: python3 scripts/bilim_yukla.py <skill papkasi yoki .skill fayli> — keyin serverni qayta ishga tushiring.");
-      else if (!s.klassifikator) showBanner("Klassifikator bazasi (data/klassifikator.json) topilmadi — kod qidiruvi ishlamaydi.");
-      if (s.parol_kerak && !parol) askPassword();
-    } catch (_) { showBanner("Server bilan aloqa yo'q."); }
-  }
-  function askPassword(msg) {
-    $("pwError").hidden = !msg; $("pwError").textContent = msg || "";
-    $("pwDialog").showModal(); $("pwInput").focus();
-  }
-  $("pwForm").addEventListener("submit", async (e) => {
-    e.preventDefault();
-    const p = $("pwInput").value;
-    const r = await fetch("/api/kirish", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ parol: p }) });
-    if (r.ok) { parol = p; try { sessionStorage.setItem("kirish_paroli", p); } catch (_) {} $("pwDialog").close(); }
-    else { $("pwError").hidden = false; $("pwError").textContent = "Parol noto'g'ri."; }
-  });
-
-  // ---------- examples ----------
-  EXAMPLES.forEach((t) => {
-    const b = el("button", null, t); b.type = "button";
-    b.onclick = () => { input.value = t; autosize(); input.focus(); };
-    $("examples").appendChild(b);
-  });
-
-  // ---------- images ----------
-  $("attachBtn").onclick = () => $("file").click();
-  $("file").onchange = async (e) => {
-    for (const f of e.target.files) {
-      if (images.length >= 5) { showBanner("Ko'pi bilan 5 ta rasm."); break; }
-      try { images.push(await prepareImage(f)); } catch (err) { showBanner(String(err.message || err)); }
-    }
-    e.target.value = ""; drawThumbs();
-  };
-  function readAsDataURL(file) {
-    return new Promise((res, rej) => { const r = new FileReader(); r.onload = () => res(r.result); r.onerror = () => rej(new Error("Rasmni o'qib bo'lmadi.")); r.readAsDataURL(file); });
-  }
-  async function prepareImage(file) {
-    let url = await readAsDataURL(file);
-    let type = file.type;
-    const img = await new Promise((res, rej) => { const i = new Image(); i.onload = () => res(i); i.onerror = () => rej(new Error("Rasm formati qo'llab-quvvatlanmaydi.")); i.src = url; });
-    const maxSide = 2400;
-    if (file.size > 3.5 * 1024 * 1024 || Math.max(img.width, img.height) > maxSide || !["image/png", "image/jpeg", "image/webp", "image/gif"].includes(type)) {
-      // Telefon suratlarini kichraytiramiz: API rasm uchun 5 MB chegara qo'yadi
-      const k = Math.min(1, maxSide / Math.max(img.width, img.height));
-      const c = document.createElement("canvas");
-      c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
-      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
-      url = c.toDataURL("image/jpeg", 0.88); type = "image/jpeg";
-    }
-    return { media_type: type, data: url.split(",")[1], url };
-  }
-  function drawThumbs() {
-    const t = $("thumbs"); t.innerHTML = "";
-    images.forEach((im, idx) => {
-      const d = el("div", "thumb"); const i = el("img"); i.src = im.url; i.alt = "biriktirilgan rasm";
-      const x = el("button", null, "×"); x.type = "button"; x.title = "Olib tashlash";
-      x.onclick = () => { images.splice(idx, 1); drawThumbs(); };
-      d.append(i, x); t.appendChild(d);
-    });
-  }
-
-  // ---------- composer ----------
-  function autosize() { input.style.height = "auto"; input.style.height = Math.min(200, input.scrollHeight) + "px"; }
-  input.addEventListener("input", autosize);
-  input.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.isComposing) { e.preventDefault(); if (!busy) send(); }
-  });
-  sendBtn.onclick = () => (busy ? controller?.abort() : send());
-  $("newBtn").onclick = async () => {
-    if (busy) controller?.abort();
-    try {
-      const r = await fetch("/api/yangi", { method: "POST", headers: headers(), body: JSON.stringify({ suhbat_id: suhbatId }) });
-      if (r.ok) suhbatId = (await r.json()).suhbat_id; else suhbatId = null;
-    } catch (_) { suhbatId = null; }
-    log.querySelectorAll(".msg").forEach((m) => m.remove());
-    $("empty").style.display = ""; showBanner(""); loadStatus(); input.focus();
-  };
-  function setBusy(b) { busy = b; sendBtn.textContent = b ? "To'xtatish" : "Yuborish"; sendBtn.classList.toggle("primary", !b); }
-
-  // ---------- bot message view ----------
-  function botView() {
-    const wrap = el("div", "msg bot"); const card = el("div", "card"); wrap.appendChild(card); log.appendChild(wrap);
-    const view = { card, segment: null, text: "", think: null, steps: null, pending: false, sources: [] };
-    view.cursor = el("div", "typing"); card.appendChild(view.cursor);
-    return view;
-  }
-  function newSegment(v) { v.segment = el("div", "md"); v.text = ""; v.card.insertBefore(v.segment, v.cursor); v.steps = null; }
-  function addStep(v, text, cls) {
-    if (!v.steps) { v.steps = el("div", "steps"); v.card.insertBefore(v.steps, v.cursor); v.segment = null; }
-    const s = el("div", "step" + (cls ? " " + cls : ""), text); v.steps.appendChild(s); return s;
-  }
-  function flush(v) { if (v.segment) renderMd(v.segment, v.text); v.pending = false; scrollDown(); }
-
-  function handle(v, ev) {
-    switch (ev.t) {
-      case "suhbat": suhbatId = ev.id; break;
-      case "blok": newSegment(v); break;
-      case "matn":
-        if (!v.segment) newSegment(v);
-        v.text += ev.v;
-        if (!v.pending) { v.pending = true; requestAnimationFrame(() => flush(v)); }
-        break;
-      case "fikr":
-        if (!v.think) {
-          const d = el("details", "think"); d.appendChild(el("summary", null, "Fikrlash jarayoni"));
-          v.think = el("div"); d.appendChild(v.think); v.card.insertBefore(d, v.cursor);
-        }
-        v.think.textContent += ev.v; break;
-      case "vosita": {
-        const f = TOOL_LABELS[ev.nom]; addStep(v, "⚙ " + (f ? f(ev.kirish || {}) : ev.nom)); break;
-      }
-      case "natija": if (ev.xato) addStep(v, "⚠ " + ev.qisqa, "err"); break;
-      case "qidiruv": addStep(v, `🌐 Internetda qidiruv: "${ev.v}"`); break;
-      case "manbalar": {
-        if (!ev.v.length) break;
-        const s = addStep(v, "Manbalar: ");
-        ev.v.slice(0, 5).forEach((m, i) => {
-          if (!/^https?:\/\//i.test(m.url)) return;
-          const a = el("a", null, m.nom || m.url); a.href = m.url; a.target = "_blank"; a.rel = "noopener noreferrer";
-          if (i) s.appendChild(document.createTextNode(" · ")); s.appendChild(a);
-        });
-        break;
-      }
-      case "zaxira": v.card.insertBefore(el("div", "note", `Javobni zaxira model davom ettirdi (${ev.ga}).`), v.cursor); break;
-      case "qayta": addStep(v, "↻ Qayta urinilmoqda…"); break;
-      case "xato": v.card.insertBefore(el("div", "error", ev.v), v.cursor); v.failed = true; break;
-      case "tugadi": {
-        const u = ev.usage || {};
-        let note = "";
-        if (ev.sabab === "max_tokens") note = "Javob uzunlik chegarasida kesildi — \"davom et\" deb yozing. ";
-        if (ev.sabab === "qadam_chegarasi") note = "Qadamlar chegarasiga yetildi — \"davom et\" deb yozing. ";
-        const total = (u.kirish || 0) + (u.kesh_oqildi || 0) + (u.kesh_yozildi || 0);
-        note += `Tokenlar: kirish ${total.toLocaleString()} (keshdan ${(u.kesh_oqildi || 0).toLocaleString()}), chiqish ${(u.chiqish || 0).toLocaleString()}`;
-        v.card.insertBefore(el("div", "note", note), v.cursor);
-        break;
-      }
-    }
-  }
-
-  // ---------- send ----------
-  async function send() {
-    const text = input.value.trim();
-    if (!text && !images.length) return;
-    $("empty").style.display = "none"; showBanner("");
-    const um = el("div", "msg user"); const bubble = el("div", "bubble");
-    images.forEach((im) => { const i = el("img"); i.src = im.url; i.alt = "biriktirilgan rasm"; bubble.appendChild(i); });
-    if (text) bubble.appendChild(document.createTextNode(text));
-    um.appendChild(bubble); log.appendChild(um);
-    const payload = { suhbat_id: suhbatId, matn: text, rasmlar: images.map(({ media_type, data }) => ({ media_type, data })) };
-    input.value = ""; autosize(); images = []; drawThumbs();
-    const v = botView(); scrollDown(true);
-    setBusy(true); controller = new AbortController();
-    let finished = false;
-    try {
-      const r = await fetch("/api/chat", { method: "POST", headers: headers(), body: JSON.stringify(payload), signal: controller.signal });
-      if (!r.ok) {
-        let detail = `Xato (${r.status})`;
-        try { const j = await r.json(); if (j.detail) detail = typeof j.detail === "string" ? j.detail : "So'rov noto'g'ri."; } catch (_) {}
-        if (r.status === 401) { parol = ""; askPassword(detail); }
-        handle(v, { t: "xato", v: detail });
-        return;
-      }
-      const reader = r.body.getReader(); const dec = new TextDecoder(); let buf = "";
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) break;
-        buf += dec.decode(value, { stream: true });
-        let idx;
-        while ((idx = buf.indexOf("\n\n")) >= 0) {
-          const chunk = buf.slice(0, idx); buf = buf.slice(idx + 2);
-          for (const line of chunk.split("\n")) {
-            if (!line.startsWith("data: ")) continue;
-            let ev; try { ev = JSON.parse(line.slice(6)); } catch (_) { continue; }
-            if (ev.t === "tugadi") finished = true;
-            handle(v, ev);
-          }
-        }
-      }
-      if (!finished && !v.failed) handle(v, { t: "xato", v: "Javob to'liq kelmadi — bu navbat suhbat tarixiga kirmadi. Qayta yuboring." });
-    } catch (err) {
-      if (err.name === "AbortError") v.card.insertBefore(el("div", "note", "To'xtatildi — bu navbat suhbat tarixiga kirmadi."), v.cursor);
-      else handle(v, { t: "xato", v: "Server bilan aloqa uzildi." });
-    } finally {
-      flush(v); v.cursor.remove(); setBusy(false); controller = null; scrollDown(); input.focus();
-    }
-  }
-
-  loadStatus();
-  input.focus();
-})();
-</script>
 </body>
 </html>

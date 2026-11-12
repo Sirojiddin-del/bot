@@ -68,6 +68,11 @@ def test_kod_qidir(bilim):
     assert not err and "28.25.12.130-00001" in out and "1 ta" in out
 
 
+def test_kod_qidir_caps_terms(bilim):
+    out, err = run_tool(bilim, "kod_qidir", {"sozlar": [f"soz{i}" for i in range(40)]})
+    assert not err and out.count("== \"soz") == 10 and "faqat birinchi 10 tasi" in out
+
+
 @pytest.mark.parametrize("args", [{}, {"sozlar": "sovun"}, {"sozlar": [1, 2]}, {"sozlar": ["  "]}])
 def test_kod_qidir_rejects_bad_input(bilim, args):
     out, err = run_tool(bilim, "kod_qidir", args)
