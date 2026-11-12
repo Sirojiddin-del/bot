@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="uz">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Davlat xaridlari agenti</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6feb'/%3E%3Cpath d='M9 16.5l4.5 4.5L23 11.5' stroke='white' stroke-width='3.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
+<link rel="stylesheet" href="/static/style.css">
+<script src="/static/vendor/marked.min.js" defer></script>
+<script src="/static/vendor/purify.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header>
+  <h1>Davlat xaridlari agenti</h1>
+  <span class="meta" id="meta"></span>
+  <span class="spacer"></span>
+  <button id="newBtn" type="button">Yangi suhbat</button>
+</header>
+<div id="banner" role="alert" hidden></div>
+<main id="scroller">
+  <div id="log" aria-live="polite">
+    <div id="empty">
+      <h2>Xarid bo'yicha nima qilamiz?</h2>
+      <div>Talabnoma suratini yuboring yoki vazifani yozing: usul tanlash, narx o'rganish, klassifikator kodi, texnik topshiriq, qonun tahlili.</div>
+      <div class="examples" id="examples"></div>
+    </div>
+  </div>
+</main>
+<footer>
+  <div class="composer">
+    <div id="thumbs"></div>
+    <div class="row">
+      <input type="file" id="file" accept="image/png,image/jpeg,image/webp,image/gif" multiple hidden>
+      <button id="attachBtn" type="button" title="Rasm biriktirish (talabnoma surati, ekran nusxasi)" aria-label="Rasm biriktirish">📎</button>
+      <textarea id="input" rows="1" placeholder="Xabar yozing…" aria-label="Xabar"></textarea>
+      <button id="sendBtn" class="primary" type="button">Yuborish</button>
+    </div>
+    <div class="hint">Enter — yuborish, Shift+Enter — yangi qator; rasmni Ctrl+V bilan ham qo'yish mumkin. Agent — yordamchi vosita: yakuniy qaror, imzo va ERI sizning javobgarligingizda.</div>
+  </div>
+</footer>
+<dialog id="pwDialog" aria-labelledby="pwTitle">
+  <form id="pwForm">
+    <strong id="pwTitle">Kirish paroli</strong>
+    <input type="password" id="pwInput" autocomplete="current-password" aria-labelledby="pwTitle" maxlength="256" required>
+    <div class="error" id="pwError" hidden></div>
+    <button class="primary" type="submit">Kirish</button>
+  </form>
+</dialog>
+</body>
+</html>
