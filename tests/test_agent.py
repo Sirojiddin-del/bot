@@ -434,3 +434,32 @@ def test_ombor_ttl_and_image_budget():
     assert om.topish(eski.id) is None  # muddati o'tgan
     assert om.topish(a.id) is None  # rasm hajmi chegarasi: eng eskisi chiqarildi
     assert om.topish(b.id) is b and om.topish(c.id) is c
+
+
+def test_missing_api_key_gives_clear_message(bilim_dir, monkeypatch):
+    """Kalit qo'yilmagan bo'lsa, SDK ichki xatosi emas, tushunarli xabar chiqadi va tarix o'zgarmaydi."""
+    import anthropic
+    from app.agent import KALIT_YOQ
+    for name in ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN", "ANTHROPIC_PROFILE"):
+        monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("HOME", str(bilim_dir))  # diskdagi profil ta'sir qilmasin
+    settings = dataclasses.replace(load_settings(), bilim_dir=bilim_dir)
+    agent = Agent(anthropic.AsyncAnthropic(), settings, Bilim(bilim_dir))
+    assert agent.kalit_bor is False
+    s = Suhbat(id="s")
+    events = run(collect(agent.javob(s, user("salom"))))
+    assert events == [{"t": "xato", "v": KALIT_YOQ}] and s.messages == []
+
+
+def test_unexpected_exception_is_reported_and_rolled_back(fake_api, bilim_dir, monkeypatch):
+    fake_api.add(message([{"type": "text", "text": "ok"}]))
+    agent = make_agent(fake_api, bilim_dir)
+    assert agent.kalit_bor is True
+
+    def portla(*a, **kw):
+        raise RuntimeError("kutilmagan")
+
+    monkeypatch.setattr(agent, "_request", portla)
+    s = Suhbat(id="s")
+    events = run(collect(agent.javob(s, user("x"))))
+    assert events[-1]["t"] == "xato" and "kutilmagan xato" in events[-1]["v"] and s.messages == []

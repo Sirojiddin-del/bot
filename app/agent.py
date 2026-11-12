@@ -23,6 +23,8 @@ FALLBACK_BETA = "server-side-fallback-2026-07-01"
 MAX_JSON_RETRIES = 2
 # Server vositasi (veb-qidiruv) uzoq ishlasa, API javobni "pause_turn" bilan bo'lib beradi
 MAX_PAUSES = 8
+KALIT_YOQ = ("Claude API kaliti o'rnatilmagan. Serverdagi .env faylida ANTHROPIC_API_KEY ni yozing "
+             "va serverni qayta ishga tushiring.")
 
 PREAMBLE = """\
 Siz veb-ilovada ishlaydigan "Davlat xaridlari agenti"siz. Quyida skill yo'riqnomasi (SKILL.md) berilgan — unga to'liq amal qiling. Yo'riqnoma Claude ilovasi uchun yozilgan; bu muhitda farqlar:
@@ -161,6 +163,12 @@ class Agent:
         self.bilim = bilim
         self.tools = tool_params(settings.web_search)
 
+    @property
+    def kalit_bor(self) -> bool:
+        """Claude API uchun kalit (yoki boshqa kirish ma'lumoti) sozlanganmi."""
+        c = self.client
+        return bool(getattr(c, "api_key", None) or getattr(c, "auth_token", None) or getattr(c, "credentials", None))
+
     def _request(self, system: str, messages: list[dict]) -> dict:
         req: dict[str, Any] = {
             "model": self.settings.model,
@@ -186,6 +194,9 @@ class Agent:
         shunda tarixda javobsiz tool_use qolmaydi va keyingi so'rov to'g'ri bo'ladi.
         Tarix faqat oxiridan o'sadi (oldingi xabarlar tahrir qilinmaydi).
         """
+        if not self.kalit_bor:
+            yield {"t": "xato", "v": KALIT_YOQ}
+            return
         messages = suhbat.messages
         start_len = len(messages)
         completed = False
@@ -271,6 +282,11 @@ class Agent:
             yield {"t": "xato", "v": "Claude API bilan aloqa uzildi. Internetni tekshirib, qayta urinib ko'ring."}
         except ValueError:
             yield {"t": "xato", "v": "Model vosita chaqiruvini noto'g'ri shaklda yubordi. Qayta urinib ko'ring."}
+        except Exception:
+            # Kutilmagan xato: oqim uzilib, sahifa tushunarsiz holatda qolmasin; tafsiloti server jurnalida
+            log.exception("Agent navbatida kutilmagan xato")
+            yield {"t": "xato", "v": "Serverda kutilmagan xato yuz berdi. Qayta urinib ko'ring; "
+                                     "takrorlansa, server jurnalini tekshiring."}
         finally:
             if not completed:
                 del messages[start_len:]

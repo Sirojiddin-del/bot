@@ -309,6 +309,7 @@ def create_app(
             "kirilgan": True,
             "bilim": bilim.mavjud(),
             "klassifikator": (bilim.root / "data" / "klassifikator.json").is_file(),
+            "kalit": state["agent"].kalit_bor,
             "model": settings.model,
             "veb_qidiruv": settings.web_search,
         }

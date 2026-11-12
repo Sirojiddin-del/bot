@@ -134,7 +134,8 @@
         return;
       }
       $("meta").textContent = `${s.model}${s.veb_qidiruv ? " · veb-qidiruv yoqilgan" : ""}`;
-      if (!s.bilim) showBanner("Bilim bazasi yuklanmagan. Serverda: python3 scripts/bilim_yukla.py <skill papkasi yoki .skill fayli> — keyin serverni qayta ishga tushiring.");
+      if (!s.kalit) showBanner("Claude API kaliti o'rnatilmagan. Serverdagi .env faylida ANTHROPIC_API_KEY ni yozing va serverni qayta ishga tushiring.");
+      else if (!s.bilim) showBanner("Bilim bazasi yuklanmagan. Serverda: python3 scripts/bilim_yukla.py <skill papkasi yoki .skill fayli> — keyin serverni qayta ishga tushiring.");
       else if (!s.klassifikator) showBanner("Klassifikator bazasi (data/klassifikator.json) topilmadi — kod qidiruvi ishlamaydi.");
     } catch (_) {
       showBanner("Server bilan aloqa yo'q.");

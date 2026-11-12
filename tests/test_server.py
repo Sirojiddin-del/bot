@@ -57,7 +57,7 @@ def test_index_static_and_status(client_for, bilim_dir):
         assert c.get("/static/../server.py").status_code == 404
         s = c.get("/api/holat").json()
         assert s == {"parol_kerak": False, "kirilgan": True, "bilim": True, "klassifikator": True,
-                     "model": "claude-opus-5-5", "veb_qidiruv": False}
+                     "kalit": True, "model": "claude-opus-5-5", "veb_qidiruv": False}
         assert c.get("/docs").status_code == 404 and c.get("/openapi.json").status_code == 404
 
 
